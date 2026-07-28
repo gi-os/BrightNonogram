@@ -146,6 +146,12 @@ the shipped puzzles can't drift apart.
   it optimal per line. The implementation is original.
 - The 69 pictures in `art/icons-10.txt` are drawn by hand and dedicated CC0. Every
   puzzle in `packs/` is CC0 too. Take them.
+- The app's mark follows the collection convention set by
+  [LightFog](https://github.com/gi-os/LightFog)'s `scripts/generate-icon.js`: the
+  app's first letter in Public Sans, white on black, 85.4pt on a 100pt canvas,
+  centred on the ink rather than the line box. Regenerate with
+  `python3 tools/generate_icon.py`. Public Sans is SIL OFL 1.1 — see
+  [assets/fonts/README.md](assets/fonts/README.md).
 
 [LightSolitaire](https://github.com/gi-os/LightSolitaire) went the other way in this
 collection — it put a complete game in the SDK `tool` module first, so it's the model
