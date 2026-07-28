@@ -109,9 +109,9 @@ stack instead of two that can disagree.
 `art/icons-10.txt` is the source of truth. Edit a picture, then:
 
 ```bash
-cd tools/picross-gen
-./gradlew run --args="bundle --art ../../art/icons-10.txt \
-    --kotlin ../../tool/src/main/kotlin/com/gios/lightnonogram/data/BundledPack.kt"
+./gradlew -p tools/picross-gen run --args="bundle \
+    --art $PWD/art/icons-10.txt \
+    --kotlin $PWD/tool/src/main/kotlin/com/gios/lightnonogram/data/BundledPack.kt"
 ```
 
 The bundler **refuses to emit an ambiguous puzzle** and names the offender, so a bad edit fails loudly at build time instead of shipping.
@@ -122,7 +122,7 @@ The pack compiles into the APK as a Kotlin string constant rather than loading f
 
 ```bash
 ./gradlew :tool:testDebugUnitTest        # 29 game and generator tests
-cd tools/picross-gen && ./gradlew test   # solver correctness, brute-force cross-check
+./gradlew -p tools/picross-gen test      # solver correctness, brute-force cross-check
 ```
 
 CI runs both on every push, and also regenerates the puzzle pack from

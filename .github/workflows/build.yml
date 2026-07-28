@@ -45,22 +45,25 @@ jobs:
       # BundledPack.kt would silently diverge from the art. Regenerate and fail if
       # the result differs. This also re-validates every picture: the bundler
       # refuses to emit a puzzle that isn't uniquely solvable.
+      # picross-gen is a separate Gradle build with no wrapper of its own, so it
+      # is driven by the root wrapper via -p. Paths are absolute because the run
+      # task's working directory is the nested project dir, not the repo root.
       - name: Puzzle pack matches art/icons-10.txt
         run: |
           set -euo pipefail
-          pack=tool/src/main/kotlin/com/gios/lightnonogram/data/BundledPack.kt
+          pack="tool/src/main/kotlin/com/gios/lightnonogram/data/BundledPack.kt"
           cp "$pack" /tmp/BundledPack.kt.orig
-          (cd tools/picross-gen && ./gradlew --quiet --no-daemon run --args="bundle \
-            --art ../../art/icons-10.txt \
-            --kotlin ../../$pack \
-            --out /tmp/packs-check")
+          ./gradlew --no-daemon -p tools/picross-gen run --args="bundle \
+            --art $GITHUB_WORKSPACE/art/icons-10.txt \
+            --kotlin $GITHUB_WORKSPACE/$pack \
+            --out /tmp/packs-check"
           if ! diff -u /tmp/BundledPack.kt.orig "$pack"; then
-            echo "::error::BundledPack.kt is out of date. Regenerate it with tools/picross-gen bundle." >&2
+            echo "::error::BundledPack.kt is out of date. Regenerate it with the bundle command in README.md." >&2
             exit 1
           fi
 
       - name: Generator tests
-        run: cd tools/picross-gen && ./gradlew --no-daemon test
+        run: ./gradlew --no-daemon -p tools/picross-gen test
 
       - name: Run app checks
         env:
