@@ -1,42 +1,48 @@
 # LightNonogram
 
-Picross for the [Light Phone III](https://www.thelightphone.com/) — and the generator that feeds it.
+Picross for the [Light Phone III](https://www.thelightphone.com/), and the generator
+that feeds it.
 
-A black-and-white grid puzzle is close to the ideal Light Phone tool: it's natively 1-bit, needs no network to play, and has no feed to scroll. This repo is the puzzle infrastructure first, because that's the part that decides whether the game is any good.
+A black-and-white grid puzzle suits this phone. It is one-bit by nature, it needs no
+network, and it has no feed to scroll. This repo holds the puzzle infrastructure first,
+because that part decides whether the game is any good.
+
+Part of the [gi-os Light App collection](#the-gi-os-light-app-collection).
 
 ## Status
 
 | Piece | State |
-|---|---|
-| `tools/picross-gen` — puzzle generator + solver | **Working.** Tests pass, output independently verified. |
-| `packs/` — generated puzzle packs | **336 puzzles**, CC0. |
-| Light SDK tool module — the actual app | Not started. |
+| --- | --- |
+| `tools/picross-gen`, the generator and solver | Working. Tests pass and the output checks out independently. |
+| `packs/`, the generated puzzles | 336 puzzles, CC0. |
+| The light-sdk tool module, the game itself | Not started. |
 
-## Why generate instead of importing
+## Why generate instead of import
 
-There is no large, freely-redistributable nonogram corpus. [webpbn.com](https://webpbn.com/) is the canonical archive — tens of thousands of puzzles — but every one is copyrighted by its author and explicitly not licensed for redistribution. Collections that ship with open-source nonogram games tend to be either tiny or of unclear origin.
+No large, freely redistributable nonogram corpus exists. [webpbn.com](https://webpbn.com/)
+is the canonical archive, with tens of thousands of puzzles, but each one belongs to its
+author and carries no redistribution license. The collections that ship with open-source
+nonogram games are either small or of unclear origin.
 
-That matters more than usual here: Light builds and signs community tools **from a public git commit and archives the source at build time**. Anything with murky provenance in this repo would be permanent and attributable.
+That matters more than usual here. Light builds and signs a community tool from a public
+git commit and archives the source at build time. Anything with murky provenance in this
+repo would stay permanent and attributable.
 
 So the puzzles are generated, validated, and CC0.
 
-## Layout
-
-```
-packs/                    generated puzzle packs + index.json (CC0-1.0)
-tools/picross-gen/        the generator — see its README for the algorithm
-  src/main/kotlin/        line solver, grid solver, generator, CLI
-  src/test/kotlin/        solver correctness suite
-  ondevice/               drop-in files for the Light tool module
-```
-
 ## The one idea that matters
 
-Every puzzle is checked against an **optimal line solver** before it ships. That solver deduces exactly the cells forced by a line's clues — no more, no less — and never guesses. If pure line logic can't finish a candidate grid, the candidate is thrown away.
+Every puzzle passes an optimal line solver before it ships. That solver deduces exactly
+the cells a line's clues force, no more and no less, and it never guesses. If pure line
+logic cannot finish a candidate grid, the generator throws the candidate away.
 
-This is what separates a real Picross from a coin flip. A randomly-generated grid is usually either ambiguous or trivial; the validator is the whole product.
+This is what separates a real Picross from a coin flip. A random grid is usually either
+ambiguous or trivial. The validator is the product.
 
-The property worth testing isn't "does the solver solve puzzles" but *"is every deduction it makes actually forced?"* An over-eager solver silently ships unsolvable puzzles and nobody finds out until a player is stuck on level 40. So the suite cross-checks it against exhaustive enumeration:
+The property worth testing is not "does the solver solve puzzles". It is "is every
+deduction it makes actually forced". An over-eager solver ships unsolvable puzzles in
+silence, and nobody finds out until a player sticks on level 40. So the suite
+cross-checks it against exhaustive enumeration.
 
 ```
 PASS  overlap [8] in 10 forces cells 2..7
@@ -46,34 +52,64 @@ PASS  500 random grids: every deduction agrees with truth
 PASS  'Solved' always means exhaustively unique
 ```
 
+## Layout
+
+```
+packs/                    generated packs and index.json (CC0-1.0)
+tools/picross-gen/        the generator, see its README for the algorithm
+  src/main/kotlin/        line solver, grid solver, generator, CLI
+  src/test/kotlin/        solver correctness suite
+  ondevice/               drop-in files for the Light tool module
+```
+
 ## Quick start
 
-```bash
+```sh
 cd tools/picross-gen
 ./gradlew test
 ./gradlew run --args="random --size 15 --count 150 --seed 1 --pack-id core-15"
 ./gradlew run --args="image --in art/ --size 15 --pack-id shapes"
 ```
 
-## Packs
+`packs/index.json` is the manifest a client polls. It fetches a pack only when the
+`version` field changes.
 
-`packs/index.json` is the manifest a client polls; each pack is fetched only when its `version` changes.
+## Origin and credits
 
-| Pack | Size | Count |
-|---|---|---|
-| `core-10` | 10×10 | 60 |
-| `core-15` | 15×15 | 150 |
-| `hard-15` | 15×15 | 50 |
-| `core-20` | 20×20 | 80 |
+- **[The Light Phone](https://www.thelightphone.com/)** for
+  [light-sdk](https://github.com/lightphone/light-sdk), which the tool module will use.
+  `tools/picross-gen/ondevice/` already holds the two files that module needs,
+  `PackSync.kt` and `PuzzleCodec.kt`.
+- **[webpbn.com](https://webpbn.com/)** by Jan Wolter is the reference archive for this
+  puzzle form, and its write-ups on line-solving and puzzle difficulty shaped the solver
+  here. No webpbn puzzle appears in this repo, because none of them carry a
+  redistribution license. Thank you for the documentation.
+- The line solver follows the standard left-most and right-most packing overlap method
+  that the nonogram-solving literature describes. The implementation is original.
+- Every puzzle in `packs/` is CC0-1.0. Take them.
 
-Solutions are stored as Base64 row-major bitmasks — a 20×20 is 50 bytes. Clues are derived at load time, never stored, so they can't drift out of sync with the picture.
+[LightSolitaire](https://github.com/gi-os/LightSolitaire) went the other way in this
+collection. It put a complete game in the SDK `tool` module first, so it is the model to
+follow when this repo builds its own.
 
-## Next
+## The gi-os Light App collection
 
-- Light SDK tool module: `lighttool.toml`, `HomeScreen`, `PuzzleScreen`
-- Compose grid with axis-locked drag-fill (the feature that separates a good Picross from a tedious one)
-- Progress storage via DataStore, kept separate from the read-only packs
+Eight tools for the Light Phone III, all open source, all built in one run.
 
-## Licenses
+| Tool | What it does | Built on |
+| --- | --- | --- |
+| [LightPass](https://github.com/gi-os/LightPass) | Photograph a movie ticket, keep the stub | Plain Android |
+| [LightQR](https://github.com/gi-os/LightQR) | QR scanner, plus a browser generator | Plain Android |
+| [LightRSS](https://github.com/gi-os/LightRSS) | RSS and Atom reader with images and QR subscribe | light-sdk, fork of [zachattack323/LightRSS](https://github.com/zachattack323/LightRSS) |
+| [LightNYCSubway](https://github.com/gi-os/LightNYCSubway) | Live MTA subway arrivals | light-sdk fork |
+| [chat](https://github.com/gi-os/chat) | iMessage over a self-hosted BlueBubbles server | Fork of [craigeley/chat](https://github.com/craigeley/chat) |
+| [LightFog](https://github.com/gi-os/LightFog) | Fog of World companion, GPS recorder and fog map | Expo, [vandamd/light-template](https://github.com/vandamd/light-template) |
+| **LightNonogram** (this repo) | Picross, plus a generator that only ships solvable puzzles | Kotlin generator, light-sdk tool |
+| [LightSolitaire](https://github.com/gi-os/LightSolitaire) | Klondike, draw one, unlimited redeals | light-sdk |
 
-Code is MIT. Generated puzzles in `packs/` are CC0-1.0.
+The Light Phone does not sponsor or endorse any of these.
+
+## License
+
+Code is MIT, see [LICENSE](LICENSE). Puzzle packs are CC0-1.0, see
+[packs/LICENSE](packs/LICENSE).
