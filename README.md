@@ -114,6 +114,46 @@ cd tools/picross-gen && ./gradlew test    # solver correctness, brute-force cros
 # app tests need the Light SDK checkout — see INTEGRATION.md
 ```
 
+## Origin and credits
+
+- **[The Light Phone](https://www.thelightphone.com/)** for
+  [light-sdk](https://github.com/lightphone/light-sdk), which `app/` builds against.
+- **[webpbn.com](https://webpbn.com/)**, built by the late Jan Wolter and kept running
+  since, is the reference archive for this puzzle form. Its
+  [solver survey](https://webpbn.com/survey/) and its write-ups on line-solving and
+  puzzle difficulty shaped the solver here. No webpbn puzzle appears in this repo,
+  because each one belongs to the person who posted it and carries no redistribution
+  license. Thank you for the documentation.
+- The line solver goes past the left-most/right-most packing overlap method usually
+  described in the literature. Overlap misses deductions that appear once known cells
+  split a line into segments, so this computes, for every cell, whether it *can* be
+  filled and whether it *can* be empty across all valid clue placements — which makes
+  it optimal per line. The implementation is original.
+- The 69 pictures in `art/icons-10.txt` are drawn by hand and dedicated CC0. Every
+  puzzle in `packs/` is CC0 too. Take them.
+
+[LightSolitaire](https://github.com/gi-os/LightSolitaire) went the other way in this
+collection — it put a complete game in the SDK `tool` module first, so it's the model
+to follow when wiring `app/` up.
+
+## The gi-os Light App collection
+
+Eight tools for the Light Phone III, all open source, all built in one run.
+
+| Tool | What it does | Built on |
+| --- | --- | --- |
+| [LightPass](https://github.com/gi-os/LightPass) | Photograph a movie ticket, keep the stub | Plain Android |
+| [LightQR](https://github.com/gi-os/LightQR) | QR scanner, plus a browser generator | Plain Android |
+| [LightRSS](https://github.com/gi-os/LightRSS) | RSS and Atom reader with images and QR subscribe | light-sdk, fork of [zachattack323/LightRSS](https://github.com/zachattack323/LightRSS) |
+| [LightNYCSubway](https://github.com/gi-os/LightNYCSubway) | Live MTA subway arrivals | light-sdk fork |
+| [chat](https://github.com/gi-os/chat) | iMessage over a self-hosted BlueBubbles server | Fork of [craigeley/chat](https://github.com/craigeley/chat) |
+| [LightFog](https://github.com/gi-os/LightFog) | Fog of World companion, GPS recorder and fog map | Fork of [garado/light-topographic](https://github.com/garado/light-topographic) |
+| **LightNonogram** (this repo) | Picross, plus a generator that only ships solvable puzzles | Kotlin generator, light-sdk tool |
+| [LightSolitaire](https://github.com/gi-os/LightSolitaire) | Klondike, draw one, unlimited redeals | light-sdk |
+
+The Light Phone does not sponsor or endorse any of these.
+
 ## Licenses
 
-Code is MIT. Puzzles in `art/` and `packs/` are CC0-1.0.
+Code is MIT, see [LICENSE](LICENSE). Puzzles in `art/` and `packs/` are CC0-1.0, see
+[packs/LICENSE](packs/LICENSE).

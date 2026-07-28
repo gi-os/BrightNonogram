@@ -102,12 +102,21 @@ Bump `version` to trigger a client re-download of that pack.
 
 ## On-device
 
-`ondevice/` holds drop-in files for the Light tool module, free of blocked Android imports:
+The app lives in [`app/`](../../app), and it supersedes what used to sit here as
+`ondevice/` drop-in files:
 
-- **`PuzzleCodec.kt`** — bit decoding, clue derivation, win detection. No Android dependencies at all, so it unit-tests on the JVM.
-- **`PackSync.kt`** — `PackStore` (atomic writes to `filesDir`) and `PackSync` (version-diffed fetch over ktor), plus the `@LightJob` wiring.
+- **`app/.../game/Puzzles.kt`** — bit decoding, clue derivation, win detection.
+- **`app/.../game/Board.kt`** — all the play rules, fully tested.
+- **`app/.../gen/Generate.kt`** — a trimmed port of this solver for on-device use.
 
-Storage is plain files rather than Room. Room *is* allow-listed and is the right call if you later want cross-pack queries, but a 150-puzzle pack is ~15 KB and the only access patterns are "list packs" and "load one" — files keep both the dependency count and the review surface smaller. Player progress is the part that wants DataStore or Room, since it's written constantly; keep it separate from the read-only packs.
+The old `PackSync.kt` (version-diffed pack fetching over ktor) is gone. The app
+bundles its puzzles and generates the rest on device, so it needs no network at
+all — and shipping dead networking code would be one more thing for a Light
+reviewer to ask about. Recover it from git history if you ever want hosted packs.
+
+Note that packs reach the app as a **compiled-in Kotlin constant**, not an asset.
+The Light SDK blocks `android.content.Context` and therefore `AssetManager`. Use
+`bundle --kotlin <path>` to emit it.
 
 ## Verification
 
