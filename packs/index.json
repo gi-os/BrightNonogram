@@ -1,0 +1,6 @@
+[
+  {"id":"core-10","name":"Tens","version":1,"count":60,"url":"https://example.com/packs/core-10.json"},
+  {"id":"core-15","name":"Fifteens","version":1,"count":150,"url":"https://example.com/packs/core-15.json"},
+  {"id":"core-20","name":"Twenties","version":1,"count":80,"url":"https://example.com/packs/core-20.json"},
+  {"id":"hard-15","name":"Fifteens Hard","version":1,"count":50,"url":"https://example.com/packs/hard-15.json"}
+]
