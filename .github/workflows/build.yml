@@ -58,6 +58,12 @@ jobs:
       - name: Puzzle packs match the art files
         run: |
           set -euo pipefail
+          # Every argument that ends up inside the generated file has to match
+          # what produced the committed copy, or the diff fails on metadata
+          # rather than on a real change to the puzzles. --name is deliberately
+          # not passed: Gradle's --args splits on whitespace, so a display name
+          # with a space in it can't survive the round trip. Nothing reads the
+          # pack's name anyway — the app shows per-puzzle titles.
           check() {
             local art="$1" pack="$2" const="$3" id="$4"
             cp "$pack" "/tmp/$(basename "$pack").orig"

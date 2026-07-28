@@ -10,7 +10,7 @@ package com.gios.lightnonogram.data
 /** 69 hand-drawn puzzles, all verified uniquely solvable. */
 internal const val BUNDLED_PACK_10: String = """{
   "id": "bundled-10",
-  "name": "Pictures 10",
+  "name": "Pictures",
   "version": 1,
   "license": "CC0-1.0",
   "puzzles": [
