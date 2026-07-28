@@ -80,10 +80,12 @@ cd tools/picross-gen
   [light-sdk](https://github.com/lightphone/light-sdk), which the tool module will use.
   `tools/picross-gen/ondevice/` already holds the two files that module needs,
   `PackSync.kt` and `PuzzleCodec.kt`.
-- **[webpbn.com](https://webpbn.com/)** by Jan Wolter is the reference archive for this
-  puzzle form, and its write-ups on line-solving and puzzle difficulty shaped the solver
-  here. No webpbn puzzle appears in this repo, because none of them carry a
-  redistribution license. Thank you for the documentation.
+- **[webpbn.com](https://webpbn.com/)**, built by the late Jan Wolter and kept running
+  since, is the reference archive for this puzzle form. Its
+  [solver survey](https://webpbn.com/survey/) and its write-ups on line-solving and
+  puzzle difficulty shaped the solver here. No webpbn puzzle appears in this repo,
+  because each one belongs to the person who posted it and carries no redistribution
+  license. Thank you for the documentation.
 - The line solver follows the standard left-most and right-most packing overlap method
   that the nonogram-solving literature describes. The implementation is original.
 - Every puzzle in `packs/` is CC0-1.0. Take them.
@@ -103,7 +105,7 @@ Eight tools for the Light Phone III, all open source, all built in one run.
 | [LightRSS](https://github.com/gi-os/LightRSS) | RSS and Atom reader with images and QR subscribe | light-sdk, fork of [zachattack323/LightRSS](https://github.com/zachattack323/LightRSS) |
 | [LightNYCSubway](https://github.com/gi-os/LightNYCSubway) | Live MTA subway arrivals | light-sdk fork |
 | [chat](https://github.com/gi-os/chat) | iMessage over a self-hosted BlueBubbles server | Fork of [craigeley/chat](https://github.com/craigeley/chat) |
-| [LightFog](https://github.com/gi-os/LightFog) | Fog of World companion, GPS recorder and fog map | Expo, [vandamd/light-template](https://github.com/vandamd/light-template) |
+| [LightFog](https://github.com/gi-os/LightFog) | Fog of World companion, GPS recorder and fog map | Fork of [garado/light-topographic](https://github.com/garado/light-topographic) |
 | **LightNonogram** (this repo) | Picross, plus a generator that only ships solvable puzzles | Kotlin generator, light-sdk tool |
 | [LightSolitaire](https://github.com/gi-os/LightSolitaire) | Klondike, draw one, unlimited redeals | light-sdk |
 
