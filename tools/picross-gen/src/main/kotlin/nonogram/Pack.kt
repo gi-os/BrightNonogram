@@ -67,7 +67,7 @@ object PackWriter {
      * no I/O, no Android API, no runtime failure mode, and the bundled puzzles
      * cannot go missing. It's ~8 KB of source — a rounding error in an APK.
      */
-    fun writeKotlin(pack: Pack, file: File, packageName: String) {
+    fun writeKotlin(pack: Pack, file: File, packageName: String, constName: String = "BUNDLED_PACK_JSON") {
         file.parentFile?.mkdirs()
         val json = toJson(pack)
         val text = buildString {
@@ -78,8 +78,8 @@ object PackWriter {
             append("//\n")
             append("// Compiled in rather than loaded from assets because the Light SDK blocks\n")
             append("// android.content.Context, and therefore AssetManager.\n\n")
-            append("/** ${pack.puzzles.size} hand-drawn 10x10 puzzles, all verified uniquely solvable. */\n")
-            append("internal const val BUNDLED_PACK_JSON: String = \"\"\"")
+            append("/** ${pack.puzzles.size} hand-drawn puzzles, all verified uniquely solvable. */\n")
+            append("internal const val $constName: String = \"\"\"")
             // Escaped for a raw string literal: only $ needs care, and " can't
             // appear in a triple-quote run of 3+ (it can't here — JSON strings
             // are short and quote-delimited by construction).

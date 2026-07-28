@@ -37,6 +37,7 @@ picross-gen — generate uniquely-solvable nonogram packs
     --out DIR           output directory                    [packs]
     --kotlin FILE       also emit the pack as a Kotlin source file
     --package NAME      package for --kotlin  [com.gios.lightnonogram.data]
+    --const NAME        constant name for --kotlin   [BUNDLED_PACK_JSON]
 
   index    Rebuild index.json from packs in --out
     --out DIR           pack directory                     [packs]
@@ -191,7 +192,10 @@ fun main(args: Array<String>) {
             PackWriter.writePack(built, outDir)
             a.str("kotlin")?.let { path ->
                 PackWriter.writeKotlin(
-                    built, File(path), a.str("package") ?: "com.gios.lightnonogram.data"
+                    built,
+                    File(path),
+                    a.str("package") ?: "com.gios.lightnonogram.data",
+                    a.str("const") ?: "BUNDLED_PACK_JSON",
                 )
             }
             val passes = ordered.map { it.passes }

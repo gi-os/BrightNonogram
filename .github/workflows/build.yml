@@ -48,19 +48,30 @@ jobs:
       # picross-gen is a separate Gradle build with no wrapper of its own, so it
       # is driven by the root wrapper via -p. Paths are absolute because the run
       # task's working directory is the nested project dir, not the repo root.
-      - name: Puzzle pack matches art/icons-10.txt
+      # picross-gen is a separate Gradle build with no wrapper of its own, so it
+      # is driven by the root wrapper via -p. Paths are absolute because the run
+      # task's working directory is the nested project dir, not the repo root.
+      #
+      # Regenerating and diffing keeps the art and the shipped puzzles from
+      # drifting apart, and re-validates every picture on the way through: the
+      # bundler refuses to emit a design that isn't uniquely solvable.
+      - name: Puzzle packs match the art files
         run: |
           set -euo pipefail
-          pack="tool/src/main/kotlin/com/gios/lightnonogram/data/BundledPack.kt"
-          cp "$pack" /tmp/BundledPack.kt.orig
-          ./gradlew --no-daemon -p tools/picross-gen run --args="bundle \
-            --art $GITHUB_WORKSPACE/art/icons-10.txt \
-            --kotlin $GITHUB_WORKSPACE/$pack \
-            --out /tmp/packs-check"
-          if ! diff -u /tmp/BundledPack.kt.orig "$pack"; then
-            echo "::error::BundledPack.kt is out of date. Regenerate it with the bundle command in README.md." >&2
-            exit 1
-          fi
+          check() {
+            local art="$1" pack="$2" const="$3" id="$4"
+            cp "$pack" "/tmp/$(basename "$pack").orig"
+            ./gradlew --no-daemon -p tools/picross-gen run --args="bundle \
+              --art $GITHUB_WORKSPACE/$art \
+              --kotlin $GITHUB_WORKSPACE/$pack \
+              --const $const --pack-id $id --out /tmp/packs-check"
+            if ! diff -u "/tmp/$(basename "$pack").orig" "$pack"; then
+              echo "::error::$pack is out of date for $art. Regenerate it — see README.md." >&2
+              exit 1
+            fi
+          }
+          check art/icons-10.txt tool/src/main/kotlin/com/gios/lightnonogram/data/BundledPack.kt   BUNDLED_PACK_10 bundled-10
+          check art/icons-15.txt tool/src/main/kotlin/com/gios/lightnonogram/data/BundledPack15.kt BUNDLED_PACK_15 bundled-15
 
       - name: Generator tests
         run: ./gradlew --no-daemon -p tools/picross-gen test

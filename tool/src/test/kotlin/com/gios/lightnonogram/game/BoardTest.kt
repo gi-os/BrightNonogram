@@ -10,15 +10,14 @@ import kotlin.test.assertTrue
 class BoardTest {
 
     /** 4x4: a plus sign. */
-    private fun plus(): Board = Board(
-        4, 4,
-        intArrayOf(
-            0, 1, 1, 0,
-            1, 1, 1, 1,
-            1, 1, 1, 1,
-            0, 1, 1, 0,
-        ),
+    private fun plusSolution() = intArrayOf(
+        0, 1, 1, 0,
+        1, 1, 1, 1,
+        1, 1, 1, 1,
+        0, 1, 1, 0,
     )
+
+    private fun plus(): Board = Board(4, 4, plusSolution())
 
     /**
      * A board whose solution is entirely filled.
@@ -232,6 +231,35 @@ class BoardTest {
     }
 
     @Test
+    fun `auto-mark off leaves the grid exactly as the player left it`() {
+        // Same board as the auto-cross test, with the setting off.
+        val b = Board(4, 4, plusSolution(), autoCross = false)
+        assertEquals(listOf(2), b.rowClues[0])
+        b.beginStroke(0, 1, Tool.FILL); b.extendStroke(0, 2); b.endStroke()
+        assertTrue(b.isRowSatisfied(0), "the row is still satisfied")
+        assertEquals(Mark.EMPTY, b.markAt(0, 0), "nothing should be crossed for you")
+        assertEquals(Mark.EMPTY, b.markAt(0, 3))
+    }
+
+    @Test
+    fun `auto-mark off skips the free zero-line crosses too`() {
+        val b = Board(3, 3, intArrayOf(1, 0, 1, 0, 0, 0, 1, 0, 1), autoCross = false)
+        assertEquals(listOf(0), b.rowClues[1])
+        for (c in 0 until 3) assertEquals(Mark.EMPTY, b.markAt(1, c), "row 1 col $c")
+    }
+
+    @Test
+    fun `auto-mark off is still winnable`() {
+        for (p in bundledPack().take(12)) {
+            val b = Board(p.width, p.height, p.solution(), autoCross = false)
+            for (r in 0 until b.height) for (c in 0 until b.width) {
+                if (b.solutionAt(r, c)) b.tap(r, c, Tool.FILL)
+            }
+            assertTrue(b.isSolved, "${p.title} unsolvable with auto-mark off")
+        }
+    }
+
+    @Test
     fun `lines clued zero are crossed out before the player touches anything`() {
         // row 1 and col 1 are empty in the solution -> free crosses on load
         val b = Board(3, 3, intArrayOf(1, 0, 1, 0, 0, 0, 1, 0, 1))
@@ -261,21 +289,21 @@ class BoardTest {
      * from the compiled-in constant, not a file on disk. Testing the real shipped
      * path means a broken generator emit fails here rather than on device.
      */
-    private fun bundledPack(): List<Puzzle> = PuzzleLibrary.puzzles
+    private fun bundledPack(): List<Puzzle> = PuzzleLibrary.sizes.flatMap { PuzzleLibrary.forSize(it) }
 
     @Test
     fun `bundled pack parses and every puzzle is well formed`() {
         val puzzles = bundledPack()
-        assertTrue(puzzles.size >= 60, "expected the full bundled set, got ${puzzles.size}")
+        assertTrue(puzzles.size >= 100, "expected both bundled sets, got ${puzzles.size}")
         assertEquals(puzzles.size, puzzles.map { it.id }.distinct().size, "duplicate puzzle ids")
         for (p in puzzles) {
-            assertEquals(10, p.width, "${p.id} width")
-            assertEquals(10, p.height, "${p.id} height")
+            assertTrue(p.width in PuzzleLibrary.sizes, "${p.id} has odd width ${p.width}")
+            assertEquals(p.width, p.height, "${p.id} is not square")
             assertNotNull(p.title, "${p.id} has no title to reveal")
             val sol = p.solution()
-            assertEquals(100, sol.size)
+            assertEquals(p.width * p.height, sol.size)
             assertTrue(sol.any { it == 1 }, "${p.title} is blank")
-            assertTrue(sol.count { it == 1 } < 100, "${p.title} is completely full")
+            assertTrue(sol.count { it == 1 } < sol.size, "${p.title} is completely full")
         }
     }
 

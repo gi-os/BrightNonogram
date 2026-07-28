@@ -31,6 +31,12 @@ import com.thelightphone.sdk.ui.LightText
 import com.thelightphone.sdk.ui.LightTextVariant
 import com.thelightphone.sdk.ui.LightThemeTokens
 
+/** Width reserved per row-clue number. Two digits of Detail text fit in this. */
+private val CLUE_SLOT = 15.dp
+
+/** Height reserved per column-clue number. */
+private val CLUE_LINE = 15.dp
+
 /**
  * The playfield: clue gutters plus the grid itself.
  *
@@ -56,20 +62,32 @@ fun PicrossGrid(
     val ink = LightThemeTokens.colors.content
 
     BoxWithConstraints(modifier) {
-        // The gutter has to fit the longest clue list. For a 10-wide grid that's
-        // five numbers (1 1 1 1 1), so reserve a bit over a third of the width.
-        val gutter: Dp = maxWidth * 0.34f
-        val gridSide: Dp = maxWidth - gutter
-        val cell: Dp = gridSide / board.width
+        // Size the clue gutters from the clues the puzzle actually has, not from
+        // a fixed fraction. A 15x15 needs room for more numbers than a 10x10, and
+        // a fixed multiple of the cell size clipped them; sizing to the real
+        // maximum also hands spare room back to the cells when clues are short.
+        val maxRowClues = remember(board) { board.rowClues.maxOf { it.size } }
+        val maxColClues = remember(board) { board.colClues.maxOf { it.size } }
+
+        val rowGutter: Dp = (CLUE_SLOT * maxRowClues).coerceAtLeast(28.dp)
+        val colGutter: Dp = (CLUE_LINE * maxColClues).coerceAtLeast(28.dp)
+
+        // Fit the grid to whichever axis runs out first. Without the height
+        // constraint a 15x15 is taller than the display and the bottom rows sit
+        // under the back bar.
+        val side: Dp = minOf(maxWidth - rowGutter, maxHeight - colGutter)
+        val cell: Dp = side / board.width
+        val gridSide: Dp = cell * board.width
+        val gutter: Dp = rowGutter
 
         Column {
             // ---- column clues -------------------------------------------
             Row {
-                Spacer(Modifier.width(gutter).height(cell * 2.6f))
+                Spacer(Modifier.width(gutter).height(colGutter))
                 for (c in 0 until board.width) {
                     val satisfied = remember(version) { board.isColSatisfied(c) }
                     Column(
-                        modifier = Modifier.width(cell).height(cell * 2.6f),
+                        modifier = Modifier.width(cell).height(colGutter),
                         verticalArrangement = Arrangement.Bottom,
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
@@ -89,7 +107,7 @@ fun PicrossGrid(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             for (n in board.rowClues[r]) {
-                                Box(Modifier.width(cell * 0.62f), Alignment.Center) {
+                                Box(Modifier.width(CLUE_SLOT), Alignment.Center) {
                                     ClueNumber(n, satisfied)
                                 }
                             }

@@ -21,6 +21,13 @@ class Board(
     val width: Int,
     val height: Int,
     private val solution: IntArray,
+    /**
+     * Cross out lines whose clue is already satisfied, and lines clued 0 up
+     * front. On by default because it removes a lot of dull tapping, but some
+     * players want the grid to hold only marks they put there themselves — so
+     * it's a setting rather than a rule.
+     */
+    private val autoCross: Boolean = true,
 ) {
     init {
         require(solution.size == width * height) { "solution size != width*height" }
@@ -39,7 +46,7 @@ class Board(
         // A line clued [0] is known-empty the moment you read it, so cross it
         // out up front. Costs the player nothing and saves a row of dull taps —
         // most of the bundled pictures have blank border rows.
-        crossSatisfiedLines(record = false)
+        if (autoCross) crossSatisfiedLines(record = false)
     }
 
     // ---- stroke state -----------------------------------------------------
@@ -142,7 +149,7 @@ class Board(
     fun endStroke() {
         if (!active) return
         active = false
-        crossSatisfiedLines(record = true)
+        if (autoCross) crossSatisfiedLines(record = true)
         if (strokeBefore.isNotEmpty()) undoStack.add(HashMap(strokeBefore))
     }
 
@@ -178,7 +185,7 @@ class Board(
         undoStack.clear()
         strokeBefore.clear()
         active = false
-        crossSatisfiedLines(record = false)   // restore the free [0]-line crosses
+        if (autoCross) crossSatisfiedLines(record = false)   // restore the free [0]-line crosses
     }
 
     // ---- derived state ----------------------------------------------------

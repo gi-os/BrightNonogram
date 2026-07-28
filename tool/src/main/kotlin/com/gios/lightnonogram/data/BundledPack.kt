@@ -7,10 +7,10 @@ package com.gios.lightnonogram.data
 // Compiled in rather than loaded from assets because the Light SDK blocks
 // android.content.Context, and therefore AssetManager.
 
-/** 69 hand-drawn 10x10 puzzles, all verified uniquely solvable. */
-internal const val BUNDLED_PACK_JSON: String = """{
+/** 69 hand-drawn puzzles, all verified uniquely solvable. */
+internal const val BUNDLED_PACK_10: String = """{
   "id": "bundled-10",
-  "name": "Pictures",
+  "name": "Pictures 10",
   "version": 1,
   "license": "CC0-1.0",
   "puzzles": [

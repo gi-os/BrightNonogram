@@ -1,6 +1,6 @@
 # LightNonogram
 
-Picross for the [Light Phone III](https://www.thelightphone.com/). 10×10 picture puzzles, 69 of them hand-drawn, plus endless generated ones. No network, no permissions, no backend.
+Picross for the [Light Phone III](https://www.thelightphone.com/). 103 hand-drawn picture puzzles across 10×10 and 15×15, plus endless generated ones that get names and go in a collection. No network, no permissions, no backend.
 
 A black-and-white logic grid is close to the ideal Light Phone tool: natively 1-bit, playable offline, and there's nothing to scroll.
 
@@ -12,10 +12,12 @@ to build or sideload it.
 
 | Piece | State |
 |---|---|
-| `tool/` game core — board, drag-fill, auto-cross, win, progress | **Working.** 21 tests. |
-| `tool/` on-device generator | **Working.** 8 tests. Every generated puzzle provably solvable. |
-| `tool/` Compose UI + SDK screen | **Written, not yet built against the SDK.** CI's first run is the real test. |
-| `art/icons-10.txt` — 69 hand-drawn puzzles | **Done.** All uniquely solvable, CC0. |
+| `tool/` game core — board, drag-fill, auto-mark, win, progress | **Working.** |
+| `tool/` on-device generator + naming + collection | **Working.** |
+| Test suite | **50 tests**, all green. |
+| `tool/` Compose UI + SDK screen | **Builds and runs on device.** |
+| `art/icons-10.txt` — 69 hand-drawn 10×10 | **Done.** All uniquely solvable, CC0. |
+| `art/icons-15.txt` — 34 hand-drawn 15×15 | **Done.** All uniquely solvable, CC0. |
 | `tools/picross-gen` — generator & validator | **Working.** 9 tests + a brute-force cross-check. |
 
 Everything with no Android dependency is compiled and tested here. The Compose
@@ -36,7 +38,15 @@ Design decisions that carry most of the feel:
 - **Free crosses on load.** Lines clued `0` are known-empty the moment you read them, so they start crossed. Most pictures have blank border rows.
 - **Undo folds auto-crosses in.** Undoing a fill also reverses the crosses it triggered — otherwise you'd be left picking up litter.
 - **Dimmed clues.** A satisfied line's numbers fade, so you know where to stop looking.
-- **A dot, not an ✕.** Auto-cross marks many cells at once, and a grid full of ✕ is loud. Dots stay quiet.
+- **A dot, not an ✕.** Auto-marking covers many cells at once, and a grid full of ✕ is loud. Dots stay quiet.
+- **Auto-mark is a setting.** On by default because it saves a lot of dull tapping, off for anyone who wants the grid to hold only the marks they placed. Turning it off also skips the free crosses on lines clued `0`.
+- **An explicit Home on every view.** LightOS's hardware back can't be intercepted: `LightActivity` wires its back dispatcher straight to its own `goBack()`, which pops the SDK's stack and calls `finish()` when it empties. `LightScreen.goBack` — the one that consults `LightViewModel.onBackPressed` — is only reached if a tool calls it itself. With one screen on the stack, back always closes the tool, so every view carries its own way back.
+
+## Generated puzzles get names
+
+Tap Random and you get a fresh puzzle at the current size, titled something like *The Umbral Cartographer* or *Rookhaven's Sable Orrery*. Solve it and it joins **Your collection** — a grid of everything you've finished.
+
+The whole collection is a few characters per entry: a seed and a size. The picture and the name are both derived from the seed, so nothing is stored but the number that made them. Around 17,000 name combinations, and the seed is run through SplitMix64's finalizer first, because seeds come from the clock and consecutive puzzles are milliseconds apart — a weaker mix would name a whole session almost identically.
 
 ## Why the puzzles are hand-drawn
 
@@ -94,7 +104,8 @@ tool/                          the game (this is the Light SDK tool module)
   src/main/kotlin/.../ui/      Compose grid
   src/main/kotlin/.../HomeScreen.kt   the single SDK screen
   src/test/                    29 tests
-art/icons-10.txt               the 69 hand-drawn puzzles (CC0) — source of truth
+art/icons-10.txt               69 hand-drawn 10x10 puzzles (CC0) — source of truth
+art/icons-15.txt               34 hand-drawn 15x15 puzzles (CC0)
 tools/picross-gen/             generator, solver, validator, bundler
 packs/                         generated abstract packs, 10x10 to 20x20 (CC0)
 sdk/ plugin/ examples/ docs/   vendored from light-sdk, unmodified
@@ -106,12 +117,18 @@ stack instead of two that can disagree.
 
 ## Regenerating the bundled pack
 
-`art/icons-10.txt` is the source of truth. Edit a picture, then:
+The art files are the source of truth. Edit a picture, then regenerate its pack:
 
 ```bash
+# 10x10
 ./gradlew -p tools/picross-gen run --args="bundle \
-    --art $PWD/art/icons-10.txt \
+    --art $PWD/art/icons-10.txt --pack-id bundled-10 --const BUNDLED_PACK_10 \
     --kotlin $PWD/tool/src/main/kotlin/com/gios/lightnonogram/data/BundledPack.kt"
+
+# 15x15
+./gradlew -p tools/picross-gen run --args="bundle \
+    --art $PWD/art/icons-15.txt --pack-id bundled-15 --const BUNDLED_PACK_15 \
+    --kotlin $PWD/tool/src/main/kotlin/com/gios/lightnonogram/data/BundledPack15.kt"
 ```
 
 The bundler **refuses to emit an ambiguous puzzle** and names the offender, so a bad edit fails loudly at build time instead of shipping.
@@ -121,7 +138,7 @@ The pack compiles into the APK as a Kotlin string constant rather than loading f
 ## Tests
 
 ```bash
-./gradlew :tool:testDebugUnitTest        # 29 game and generator tests
+./gradlew :tool:testDebugUnitTest        # 50 game, generator and naming tests
 ./gradlew -p tools/picross-gen test      # solver correctness, brute-force cross-check
 ```
 
