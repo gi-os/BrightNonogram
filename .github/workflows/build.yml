@@ -71,6 +71,13 @@ jobs:
           GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
         run: ./gradlew :tool:testDebugUnitTest :tool:lintDebug :tool:assembleDebug --stacktrace
 
+      - name: Generated SDK registry is in the APK
+        # The SDK finds @InitialScreen through a KSP-generated registry that
+        # LightActivity loads with Class.forName. If KSP isn't wired up the class
+        # is simply never generated, the build still succeeds, and the tool
+        # crashes the instant it opens. v0.1.0 shipped exactly that.
+        run: python3 scripts/check_registry.py tool/build/outputs/apk/debug/tool-debug.apk
+
       - name: Upload debug APK
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:

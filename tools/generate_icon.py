@@ -1,89 +1,101 @@
 #!/usr/bin/env python3
 """
-Builds the Nonogram mark: a white capital N on black.
+Builds the Nonogram mark: the letter N drawn as a solved 5x5 nonogram.
 
-Same convention as the rest of the gi-os Light collection, where LightFog's
-scripts/generate-icon.js draws the first letter of the app name in Public Sans
-on a black square. That one only needs a PNG because LightFog is a plain Android
-app with a launcher icon. LightOS tools have no launcher icon, so this also emits
-an Android vector drawable that overrides the SDK's splash mark.
+The rest of the gi-os Light collection sets its first letter in Public Sans on a
+black square. A puzzle app can do better than a typeface: this draws the same
+letter, but as filled cells on a grid, so the mark states what the tool is. Gaps
+between cells are what make it read as a grid rather than a blocky glyph, and at
+small sizes they are the first thing to disappear — hence the deliberately
+generous gap ratio below.
 
-    python3 tools/generate_icon.py path/to/PublicSans-Regular.ttf
+Outputs:
 
-Writes:
     assets/icon.png                                    1024 square, for the repo
     tool/src/main/res/drawable/loading_text_icon.xml    the splash mark
+
+LightOS tools have no launcher icon. The splash drawable is the only place a tool
+shows a mark of its own, and it overrides the drawable of the same name in
+sdk:client because resources in the application module win over a library's.
+
+    python3 tools/generate_icon.py
 """
-
-import sys
 from pathlib import Path
-
-from fontTools.pens.svgPathPen import SVGPathPen
-from fontTools.pens.transformPen import TransformPen
-from fontTools.misc.transform import Identity
-from fontTools.ttLib import TTFont
-from PIL import Image, ImageDraw, ImageFont
-
-LETTER = "N"
-
-# Matches LightFog: an 85.4pt letter on a 100pt square.
-PNG_SIZE = 1024
-PNG_FONT_RATIO = 85.4 / 100
-
-# The SDK's own splash drawable is a 240 square, so this one has to be too.
-VECTOR_SIZE = 240
-# Height of the letter as a fraction of the drawable. 85.4pt of Public Sans has a
-# cap height near 62pt, so the same proportion holds here.
-VECTOR_LETTER_RATIO = 0.62
 
 REPO = Path(__file__).resolve().parent.parent
 
+# The letter N as a 5x5 nonogram. Legible at 5x5, which 6x6 and 4x4 are not:
+# 4 columns can't hold two stems plus a diagonal, and 6 makes the diagonal
+# staircase look like a mistake.
+PATTERN = [
+    "#...#",
+    "##..#",
+    "#.#.#",
+    "#..##",
+    "#...#",
+]
 
-def write_png(font_path: Path) -> Path:
-    image = Image.new("L", (PNG_SIZE, PNG_SIZE), 0)
-    draw = ImageDraw.Draw(image)
-    font = ImageFont.truetype(str(font_path), int(PNG_SIZE * PNG_FONT_RATIO))
+# Fraction of the canvas the grid spans. Leaves a margin so the mark doesn't
+# crowd the edge when LightOS scales it down.
+GRID_SPAN = 0.64
 
-    # Centre on the ink, not on the line box, so the letter sits optically true.
-    left, top, right, bottom = draw.textbbox((0, 0), LETTER, font=font)
-    x = (PNG_SIZE - (right - left)) / 2 - left
-    y = (PNG_SIZE - (bottom - top)) / 2 - top
-    draw.text((x, y), LETTER, fill=255, font=font)
+# Gap between cells as a fraction of the cell pitch. Below about 0.10 the cells
+# merge into a solid glyph at small sizes and the grid reading is lost.
+GAP_RATIO = 0.14
+
+# The SDK's own splash drawable is a 240 square, so this one has to be too.
+VIEWPORT = 240
+
+
+def cells():
+    """Yield (row, col) of every filled cell, top-left origin."""
+    for r, line in enumerate(PATTERN):
+        for c, ch in enumerate(line):
+            if ch == "#":
+                yield r, c
+
+
+def geometry(size: float):
+    """Return (origin, pitch, cell) in the units of a `size` square canvas."""
+    n = len(PATTERN)
+    span = size * GRID_SPAN
+    pitch = span / n
+    cell = pitch * (1.0 - GAP_RATIO)
+    origin = (size - span) / 2.0 + (pitch - cell) / 2.0
+    return origin, pitch, cell
+
+
+def write_png() -> None:
+    from PIL import Image, ImageDraw
+
+    size = 1024
+    img = Image.new("RGB", (size, size), "black")
+    draw = ImageDraw.Draw(img)
+    origin, pitch, cell = geometry(size)
+    for r, c in cells():
+        x = origin + c * pitch
+        y = origin + r * pitch
+        draw.rectangle([x, y, x + cell, y + cell], fill="white")
 
     out = REPO / "assets" / "icon.png"
     out.parent.mkdir(parents=True, exist_ok=True)
-    image.convert("RGB").save(out, optimize=True)
-    return out
+    img.save(out)
+    print(f"wrote {out.relative_to(REPO)}")
 
 
-def write_vector(font_path: Path) -> Path:
-    font = TTFont(str(font_path))
-    glyph_set = font.getGlyphSet()
-    glyph_name = font.getBestCmap()[ord(LETTER)]
-    glyph = glyph_set[glyph_name]
+def write_vector() -> None:
+    origin, pitch, cell = geometry(VIEWPORT)
 
-    # Measure the outline before drawing it, so it can be scaled to fit.
-    bounds_pen = SVGPathPen(glyph_set)
-    glyph.draw(bounds_pen)
-    from fontTools.pens.boundsPen import BoundsPen
-
-    bounds = BoundsPen(glyph_set)
-    glyph.draw(bounds)
-    x_min, y_min, x_max, y_max = bounds.bounds
-
-    scale = (VECTOR_SIZE * VECTOR_LETTER_RATIO) / (y_max - y_min)
-    # Flip the y axis: fonts measure up from the baseline, drawables measure down.
-    transform = (
-        Identity.translate(
-            (VECTOR_SIZE - (x_max - x_min) * scale) / 2 - x_min * scale,
-            (VECTOR_SIZE + (y_max - y_min) * scale) / 2 + y_min * scale,
+    # One subpath per cell. A single path keeps the drawable to one draw call,
+    # which matters more than tidiness on a splash screen.
+    parts = []
+    for r, c in cells():
+        x = origin + c * pitch
+        y = origin + r * pitch
+        parts.append(
+            f"M{x:.2f} {y:.2f}h{cell:.2f}v{cell:.2f}h-{cell:.2f}z"
         )
-        .scale(scale, -scale)
-    )
-
-    pen = SVGPathPen(glyph_set, ntos=lambda v: f"{v:.2f}")
-    glyph.draw(TransformPen(pen, transform))
-    path_data = pen.getCommands()
+    path_data = "".join(parts)
 
     xml = f"""<?xml version="1.0" encoding="utf-8"?>
 <!--
@@ -93,34 +105,31 @@ def write_vector(font_path: Path) -> Path:
     change: LightOS tools have no launcher icon, and the splash is the one place
     a tool can show a mark of its own.
 
-    Generated by tools/generate_icon.py. Public Sans, the same letterform the
-    rest of the gi-os Light collection uses.
+    Generated by tools/generate_icon.py. The letter N as a solved 5x5 nonogram,
+    one subpath per filled cell.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="{VECTOR_SIZE}dp"
-    android:height="{VECTOR_SIZE}dp"
-    android:viewportWidth="{VECTOR_SIZE}"
-    android:viewportHeight="{VECTOR_SIZE}">
+    android:width="{VIEWPORT}dp"
+    android:height="{VIEWPORT}dp"
+    android:viewportWidth="{VIEWPORT}"
+    android:viewportHeight="{VIEWPORT}">
   <path
       android:pathData="{path_data}"
-      android:fillColor="#fff"
-      android:fillType="nonZero"/>
+      android:fillColor="#fff" />
 </vector>
 """
     out = REPO / "tool" / "src" / "main" / "res" / "drawable" / "loading_text_icon.xml"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(xml)
-    return out
+    print(f"wrote {out.relative_to(REPO)}")
 
 
 def main() -> None:
-    if len(sys.argv) != 2:
-        sys.exit(__doc__)
-    font_path = Path(sys.argv[1])
-    if not font_path.is_file():
-        sys.exit(f"no font at {font_path}")
-    for path in (write_png(font_path), write_vector(font_path)):
-        print(f"wrote {path.relative_to(REPO)}")
+    write_png()
+    write_vector()
+    print("\n" + "\n".join(
+        "".join("##" if ch == "#" else "  " for ch in line) for line in PATTERN
+    ))
 
 
 if __name__ == "__main__":

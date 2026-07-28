@@ -2,6 +2,13 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    // Required, not optional. The light-sdk plugin registers its annotation
+    // processor inside `pluginManager.withPlugin("com.google.devtools.ksp")`, so
+    // without KSP applied here it silently generates no
+    // com.thelightphone.sdk.generated.LightSdkRegistry — and LightActivity looks
+    // that class up reflectively at startup, so the tool crashes the moment it
+    // opens. The build succeeds either way, which is what made this easy to miss.
+    alias(libs.plugins.ksp)
     alias(libs.plugins.light.sdk)
 }
 

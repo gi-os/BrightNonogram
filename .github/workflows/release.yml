@@ -84,6 +84,9 @@ jobs:
           LIGHTNONOGRAM_KEY_ALIAS: ${{ secrets.LIGHTNONOGRAM_KEY_ALIAS }}
         run: ./gradlew :tool:assembleRelease --stacktrace
 
+      - name: Generated SDK registry is in the APK
+        run: python3 scripts/check_registry.py tool/build/outputs/apk/release/tool-release.apk
+
       - name: Name the artifact and record its fingerprint
         run: |
           set -euo pipefail
