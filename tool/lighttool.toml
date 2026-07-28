@@ -1,0 +1,18 @@
+[tool]
+id = "com.gios.lightnonogram"
+label = "Nonogram"
+versionCode = 1
+versionName = "0.1.0"
+orientation = "portrait"
+
+# No permissions at all. Every puzzle is compiled into the APK and the rest are
+# generated on device, so the tool never touches the network, storage or
+# notifications. Nothing to ask for, nothing for a reviewer to weigh up.
+permissions = []
+
+# Built for the phone. Swap to "com.thelightphone.sdk.emulator" to run against
+# the LightOS emulator instead.
+serverPackage = "com.lightos"
+
+# The release workflow checks versionName against the git tag, and versionCode
+# has to increase every release or Android will refuse to install the update.

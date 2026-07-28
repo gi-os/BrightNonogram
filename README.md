@@ -6,15 +6,21 @@ A black-and-white logic grid is close to the ideal Light Phone tool: natively 1-
 
 ## Status
 
+This repository is a fork of [lightphone/light-sdk](https://github.com/lightphone/light-sdk)
+with the game in `tool/`, so the SDK builds from source. See [INSTALL.md](INSTALL.md)
+to build or sideload it.
+
 | Piece | State |
 |---|---|
-| `app/` game core — board, drag-fill, auto-cross, win, progress | **Working.** 21 tests. |
-| `app/` on-device generator | **Working.** 8 tests. Every generated puzzle provably solvable. |
-| `app/` Compose UI + Light SDK screens | **Written, not yet compiled** — needs the SDK. See [INTEGRATION.md](INTEGRATION.md). |
+| `tool/` game core — board, drag-fill, auto-cross, win, progress | **Working.** 21 tests. |
+| `tool/` on-device generator | **Working.** 8 tests. Every generated puzzle provably solvable. |
+| `tool/` Compose UI + SDK screen | **Written, not yet built against the SDK.** CI's first run is the real test. |
 | `art/icons-10.txt` — 69 hand-drawn puzzles | **Done.** All uniquely solvable, CC0. |
 | `tools/picross-gen` — generator & validator | **Working.** 9 tests + a brute-force cross-check. |
 
-Everything with no Android dependency is compiled and tested. The Compose layer is the part that needs a real SDK checkout, and it's flagged as such rather than claimed as done.
+Everything with no Android dependency is compiled and tested here. The Compose
+layer needs a full Android toolchain, so `.github/workflows/build.yml` is what
+actually proves it — and its first run may well fail.
 
 ## How to play
 
@@ -80,18 +86,23 @@ Yield depends sharply on fill ratio, which is the difficulty knob — time to pr
 ## Layout
 
 ```
-app/                           the Light Phone tool
+tool/                          the game (this is the Light SDK tool module)
   lighttool.toml               tool metadata; no permissions requested
   src/main/kotlin/.../game/    board rules — pure Kotlin, fully tested
   src/main/kotlin/.../gen/     on-device generator — pure Kotlin, fully tested
   src/main/kotlin/.../data/    bundled pack + progress store
   src/main/kotlin/.../ui/      Compose grid
-  src/main/kotlin/.../*Screen.kt   Light SDK screens
+  src/main/kotlin/.../HomeScreen.kt   the single SDK screen
   src/test/                    29 tests
 art/icons-10.txt               the 69 hand-drawn puzzles (CC0) — source of truth
 tools/picross-gen/             generator, solver, validator, bundler
 packs/                         generated abstract packs, 10x10 to 20x20 (CC0)
+sdk/ plugin/ examples/ docs/   vendored from light-sdk, unmodified
 ```
+
+It's one SDK screen, not three. Menu, gallery and board are ordinary Compose
+state, so LightOS's own back bar is the only back affordance — one navigation
+stack instead of two that can disagree.
 
 ## Regenerating the bundled pack
 
@@ -100,7 +111,7 @@ packs/                         generated abstract packs, 10x10 to 20x20 (CC0)
 ```bash
 cd tools/picross-gen
 ./gradlew run --args="bundle --art ../../art/icons-10.txt \
-    --kotlin ../../app/src/main/kotlin/com/gios/lightnonogram/data/BundledPack.kt"
+    --kotlin ../../tool/src/main/kotlin/com/gios/lightnonogram/data/BundledPack.kt"
 ```
 
 The bundler **refuses to emit an ambiguous puzzle** and names the offender, so a bad edit fails loudly at build time instead of shipping.
@@ -110,14 +121,18 @@ The pack compiles into the APK as a Kotlin string constant rather than loading f
 ## Tests
 
 ```bash
-cd tools/picross-gen && ./gradlew test    # solver correctness, brute-force cross-check
-# app tests need the Light SDK checkout — see INTEGRATION.md
+./gradlew :tool:testDebugUnitTest        # 29 game and generator tests
+cd tools/picross-gen && ./gradlew test   # solver correctness, brute-force cross-check
 ```
+
+CI runs both on every push, and also regenerates the puzzle pack from
+`art/icons-10.txt` and fails if it differs from what's committed — so the art and
+the shipped puzzles can't drift apart.
 
 ## Origin and credits
 
 - **[The Light Phone](https://www.thelightphone.com/)** for
-  [light-sdk](https://github.com/lightphone/light-sdk), which `app/` builds against.
+  [light-sdk](https://github.com/lightphone/light-sdk), which `tool/` builds against.
 - **[webpbn.com](https://webpbn.com/)**, built by the late Jan Wolter and kept running
   since, is the reference archive for this puzzle form. Its
   [solver survey](https://webpbn.com/survey/) and its write-ups on line-solving and
@@ -134,7 +149,7 @@ cd tools/picross-gen && ./gradlew test    # solver correctness, brute-force cros
 
 [LightSolitaire](https://github.com/gi-os/LightSolitaire) went the other way in this
 collection — it put a complete game in the SDK `tool` module first, so it's the model
-to follow when wiring `app/` up.
+to follow when wiring `tool/` up.
 
 ## The gi-os Light App collection
 
@@ -155,5 +170,7 @@ The Light Phone does not sponsor or endorse any of these.
 
 ## Licenses
 
-Code is MIT, see [LICENSE](LICENSE). Puzzles in `art/` and `packs/` are CC0-1.0, see
-[packs/LICENSE](packs/LICENSE).
+Forked from [light-sdk](https://github.com/lightphone/light-sdk) under MIT; see
+[LICENSE](LICENSE). Everything under `tool/`, `art/` and `tools/picross-gen/` is
+mine and also MIT. The puzzles themselves — `art/icons-10.txt` and `packs/` — are
+CC0-1.0, see [packs/LICENSE](packs/LICENSE).
