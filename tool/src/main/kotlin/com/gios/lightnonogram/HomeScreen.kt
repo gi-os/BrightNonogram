@@ -92,12 +92,6 @@ class HomeScreen(
             }
         }
     }
-
-    /**
-     * Send the in-screen views back to the menu before letting LightOS close the
-     * tool, so the back button never dumps the player straight out of a puzzle.
-     */
-    override fun onBackPressed(): Boolean = viewModel.onBackPressed()
 }
 
 // ---------------------------------------------------------------------------
@@ -319,8 +313,13 @@ class NonogramViewModel(private val store: ProgressStore) : LightViewModel<Unit>
         if (next != null) play(next) else view.value = View.Menu
     }
 
-    /** @return true when we handled it, false to let LightOS close the tool. */
-    fun onBackPressed(): Boolean = when (view.value) {
+    /**
+     * Intercept the LightOS back button so it walks the in-screen views back to
+     * the menu first, instead of dumping the player straight out of a puzzle.
+     *
+     * @return true when we handled it, false to let LightOS close the tool.
+     */
+    override fun onBackPressed(): Boolean = when (view.value) {
         is View.Menu -> false
         else -> { view.value = View.Menu; true }
     }
