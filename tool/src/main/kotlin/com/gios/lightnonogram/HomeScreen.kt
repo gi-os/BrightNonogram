@@ -11,6 +11,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -19,7 +22,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewModelScope
 import com.gios.lightnonogram.data.ProgressStore
 import com.gios.lightnonogram.data.PuzzleLibrary
@@ -68,14 +74,26 @@ class HomeScreen(
     override val viewModelClass: Class<NonogramViewModel>
         get() = NonogramViewModel::class.java
 
-    override fun createViewModel(): NonogramViewModel =
-        NonogramViewModel(ProgressStore(lightContext.dataStore))
+    override fun createViewModel(): NonogramViewModel {
+        // Reaching DataStore is the other thing that can fail before any UI
+        // exists. Capture the failure instead of letting it kill the process;
+        // the tool is still playable without saved progress.
+        val store = runCatching { ProgressStore(lightContext.dataStore) }
+        return NonogramViewModel(store.getOrNull(), store.exceptionOrNull())
+    }
 
     @Composable
     override fun Content() {
         val view by viewModel.view.collectAsState()
         val progress by viewModel.progress.collectAsState()
         val themeColors by LightThemeController.colors.collectAsState()
+
+        val failure by viewModel.startupError.collectAsState()
+
+        // Drawn without LightTheme or LightText on purpose: if the failure is in
+        // the theme or the SDK's text stack, a reporter built on them would die
+        // too and we'd be back to a blank crash.
+        failure?.let { StartupFailure(it); return@Content }
 
         LightTheme(colors = themeColors) {
             Box(
@@ -96,11 +114,36 @@ class HomeScreen(
 
 // ---------------------------------------------------------------------------
 
+/**
+ * Last-resort diagnostic: put the stack trace on the display.
+ *
+ * Sideloaded on a phone with no adb to hand, "it crashes" is all the feedback
+ * there is. Rendering the trace turns one install into an actual bug report.
+ */
+@Composable
+private fun StartupFailure(trace: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White)
+            .padding(12.dp)
+            .padding(bottom = BACK_BUTTON_INSET)
+            .verticalScroll(rememberScrollState()),
+    ) {
+        BasicText(
+            "Nonogram failed to start",
+            style = TextStyle(fontSize = 15.sp, color = Color.Black),
+        )
+        Spacer(Modifier.height(8.dp))
+        BasicText(trace, style = TextStyle(fontSize = 9.sp, color = Color.Black))
+    }
+}
+
 @Composable
 private fun Menu(progress: Progress, vm: NonogramViewModel) {
-    val puzzles = PuzzleLibrary.puzzles
+    val puzzles = vm.puzzles
     val done = progress.countIn(puzzles)
-    val next = PuzzleLibrary.nextUnsolved(progress)
+    val next = puzzles.firstOrNull { !progress.has(it.id) }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
@@ -117,7 +160,7 @@ private fun Menu(progress: Progress, vm: NonogramViewModel) {
         Spacer(Modifier.height(40.dp))
 
         if (next != null) {
-            MenuRow("Continue", "Puzzle ${PuzzleLibrary.numberOf(next)}") { vm.play(next) }
+            MenuRow("Continue", "Puzzle ${puzzles.indexOf(next) + 1}") { vm.play(next) }
         }
         MenuRow("Puzzles", "Browse and replay") { vm.showGallery() }
         MenuRow(
@@ -142,7 +185,7 @@ private fun MenuRow(title: String, subtitle: String, onClick: () -> Unit) {
 
 @Composable
 private fun Gallery(progress: Progress, vm: NonogramViewModel) {
-    val puzzles = PuzzleLibrary.puzzles
+    val puzzles = vm.puzzles
     Column(Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 14.dp)) {
         Row(
             Modifier.fillMaxWidth(),
@@ -249,7 +292,10 @@ private fun Play(view: View.Play, vm: NonogramViewModel) {
 
 // ---------------------------------------------------------------------------
 
-class NonogramViewModel(private val store: ProgressStore) : LightViewModel<Unit>() {
+class NonogramViewModel(
+    private val store: ProgressStore?,
+    storeFailure: Throwable? = null,
+) : LightViewModel<Unit>() {
 
     val view = MutableStateFlow<View>(View.Menu)
     val progress = MutableStateFlow(Progress())
@@ -257,10 +303,33 @@ class NonogramViewModel(private val store: ProgressStore) : LightViewModel<Unit>
     val solved = MutableStateFlow(false)
     val revealedTitle = MutableStateFlow<String?>(null)
 
+    /** Non-null means the tool shows a trace instead of the game. */
+    val startupError = MutableStateFlow<String?>(null)
+
+    /**
+     * Parsed once, here rather than in a composable, so a bad pack surfaces as a
+     * readable message rather than a crash inside composition.
+     */
+    val puzzles: List<Puzzle> = PuzzleLibrary.load().fold(
+        onSuccess = { it },
+        onFailure = { report("Parsing the bundled puzzle pack failed", it); emptyList() },
+    )
+
     init {
-        viewModelScope.launch {
-            store.progress.collect { progress.value = it }
+        storeFailure?.let { report("Opening DataStore failed", it) }
+        val s = store
+        if (s != null) {
+            viewModelScope.launch {
+                // A throw in here would otherwise be an uncaught coroutine
+                // exception, which takes the whole process down.
+                runCatching { s.progress.collect { progress.value = it } }
+                    .onFailure { report("Reading saved progress failed", it) }
+            }
         }
+    }
+
+    private fun report(what: String, e: Throwable) {
+        startupError.value = "$what\n\n" + e.stackTraceToString()
     }
 
     fun showGallery() { view.value = View.Gallery }
@@ -304,12 +373,13 @@ class NonogramViewModel(private val store: ProgressStore) : LightViewModel<Unit>
         revealedTitle.value =
             playing.puzzle?.title?.replaceFirstChar { it.uppercase() } ?: "Solved"
         val id = playing.puzzle?.id ?: return   // generated puzzles aren't part of the set
-        viewModelScope.launch { store.markSolved(id) }
+        val s = store ?: return
+        viewModelScope.launch { runCatching { s.markSolved(id) } }
     }
 
     /** After a win, go straight to the next unsolved picture — or back to the menu. */
     fun nextAfterWin() {
-        val next = PuzzleLibrary.nextUnsolved(progress.value)
+        val next = puzzles.firstOrNull { !progress.value.has(it.id) }
         if (next != null) play(next) else view.value = View.Menu
     }
 

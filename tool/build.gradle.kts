@@ -58,9 +58,19 @@ android {
             signingConfig = signingConfigs.getByName("lightsdkDev")
         }
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            // Minification is off deliberately.
+            //
+            // The SDK finds the initial screen, entry point and jobs by name
+            // through Class.forName and getMethod on a KSP-generated registry.
+            // sdk/client ships consumer rules for that, but the whole startup
+            // path depends on reflection surviving R8, and a rule that's merely
+            // incomplete fails at launch with nothing failing at build time.
+            //
+            // The APK is ~26 MB either way — it's dominated by the SDK, CameraX
+            // and ML Kit, not by this app's few hundred KB of Kotlin. R8 was
+            // buying almost nothing and risking the one thing that has to work.
+            isMinifyEnabled = false
+            isShrinkResources = false
             signingConfig = signingConfigs.getByName(if (hasSideloadKey) "sideload" else "lightsdkDev")
         }
     }

@@ -19,6 +19,15 @@ object PuzzleLibrary {
     /** Easiest first — the pack is ordered by solver passes at generation time. */
     val puzzles: List<Puzzle> by lazy { PackReader.parse(BUNDLED_PACK_JSON) }
 
+    /**
+     * Parse without throwing.
+     *
+     * This runs the moment the first screen composes, and a failure here would
+     * look identical to any other launch crash. Returning the exception instead
+     * lets the tool show what went wrong rather than disappearing.
+     */
+    fun load(): Result<List<Puzzle>> = runCatching { puzzles }
+
     fun byId(id: String): Puzzle? = puzzles.firstOrNull { it.id == id }
 
     /** Position in the set, 1-based, for display. */
