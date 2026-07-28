@@ -29,6 +29,15 @@ picross-gen — generate uniquely-solvable nonogram packs
     --name S            human-readable pack name
     --out DIR           output directory                   [packs]
 
+  bundle   Compile the hand-drawn ASCII art file into the bundled pack
+    --art FILE          art file          [../../art/icons-10.txt]
+    --pack-id ID        pack identifier               [bundled-10]
+    --name S            human-readable pack name
+    --repair N          max flips to fix ambiguity, 0=off       [0]
+    --out DIR           output directory                    [packs]
+    --kotlin FILE       also emit the pack as a Kotlin source file
+    --package NAME      package for --kotlin  [com.gios.lightnonogram.data]
+
   index    Rebuild index.json from packs in --out
     --out DIR           pack directory                     [packs]
     --base-url URL      URL prefix packs are served from    (required)
@@ -135,6 +144,59 @@ fun main(args: Array<String>) {
         "index" -> {
             val base = a.str("base-url") ?: run { println(USAGE); exitProcess(1) }
             PackWriter.writeIndex(outDir, base.trimEnd('/'))
+        }
+
+        "bundle" -> {
+            val artFile = File(a.str("art") ?: "../../art/icons-10.txt")
+            if (!artFile.isFile) { System.err.println("no art file at ${artFile.path}"); exitProcess(1) }
+            val packId = a.str("pack-id") ?: "bundled-10"
+            val name = a.str("name") ?: "Pictures"
+            val maxFlips = a.int("repair") ?: 0     // default OFF: art should be fixed at source
+            val rng = Random((a.int("seed") ?: 0).toLong())
+
+            val designs = ArtFile.parse(artFile)
+            val rated = ArrayList<Pair<Candidate, Int>>()
+            val names = HashMap<String, String>()
+            val problems = ArrayList<String>()
+
+            for (d in designs) {
+                var cand = Generator.validate(d.grid, minCoverage = 0.0)
+                if (cand == null && maxFlips > 0) {
+                    val fixed = Generator.repair(d.grid, maxFlips, minCoverage = 0.0, rng = rng)
+                    if (fixed != null) {
+                        cand = fixed.first
+                        println("  repaired ${d.name}: ${fixed.second} cell(s) flipped")
+                    }
+                }
+                if (cand == null) { problems.add(d.name); continue }
+                rated.add(cand to 0)
+                names[cand.grid.toBits()] = d.name
+            }
+
+            println("designs: ${designs.size}  usable: ${rated.size}  ambiguous: ${problems.size}")
+            if (problems.isNotEmpty()) {
+                println("  These designs are NOT uniquely solvable — redraw them:")
+                problems.forEach { println("    $it") }
+                exitProcess(1)
+            }
+
+            // Easiest first, so the bundled set doubles as a difficulty curve.
+            val ordered = rated.map { it.first }.sortedWith(
+                compareBy({ it.passes }, { names[it.grid.toBits()] })
+            )
+            val tiered = Generator.assignDifficulty(ordered)
+                .sortedWith(compareBy({ it.first.passes }, { names[it.first.grid.toBits()] }))
+
+            val built = PackWriter.build(packId, name, version, license, tiered, names)
+            PackWriter.writePack(built, outDir)
+            a.str("kotlin")?.let { path ->
+                PackWriter.writeKotlin(
+                    built, File(path), a.str("package") ?: "com.gios.lightnonogram.data"
+                )
+            }
+            val passes = ordered.map { it.passes }
+            println("passes  min=${passes.min()}  max=${passes.max()}")
+            showPreview(tiered, preview)
         }
 
         "selfcheck" -> {

@@ -1,0 +1,13 @@
+[tool]
+id = "com.gios.lightnonogram"
+name = "Nonogram"
+version_name = "0.1.0"
+version_code = 1
+description = "Picture logic puzzles. Fill the grid from the numbers to reveal a drawing."
+
+# No permissions at all, on purpose.
+#
+# Every puzzle ships compiled into the APK and generation happens on device, so
+# the tool never touches the network, storage, or notifications. Nothing to ask
+# for, nothing to explain to the user, nothing for a reviewer to weigh up.
+permissions = []
