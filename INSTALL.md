@@ -75,7 +75,7 @@ It needs these repository secrets:
 
 | Secret | What it is |
 | --- | --- |
-| `LIGHTNONOGRAM_KEYSTORE_BASE64` | `base64 -w0 lightnonogram-release.jks` |
+| `LIGHTNONOGRAM_KEYSTORE_BASE64` | `base64 -w0 lightnonogram-release.jks`. Optional — without it releases are signed with the SDK development key. |
 | `LIGHTNONOGRAM_KEYSTORE_PASSWORD` | keystore password |
 | `LIGHTNONOGRAM_KEY_ALIAS` | key alias inside the keystore |
 | `GH_PACKAGES_USER` / `GH_PACKAGES_TOKEN` | GitHub Packages read access |
