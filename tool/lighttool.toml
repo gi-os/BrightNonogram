@@ -1,8 +1,8 @@
 [tool]
 id = "com.gios.lightnonogram"
 label = "Nonogram"
-versionCode = 3
-versionName = "0.1.2"
+versionCode = 4
+versionName = "0.1.3"
 orientation = "portrait"
 
 # No permissions at all. Every puzzle is compiled into the APK and the rest are

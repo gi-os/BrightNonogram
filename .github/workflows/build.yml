@@ -71,6 +71,19 @@ jobs:
           GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
         run: ./gradlew :tool:testDebugUnitTest :tool:lintDebug :tool:assembleDebug --stacktrace
 
+      # v0.1.2 crashed at launch on a Regex the JVM accepted and Android's
+      # ICU-backed Pattern rejected — an unescaped closing brace. It compiled,
+      # linted and passed every unit test, because the tests ran on the JVM.
+      # The tool module has no need for regex; the JVM-only generator still does.
+      - name: No java.util.regex in the tool module
+        run: |
+          set -euo pipefail
+          if grep -rn --include="*.kt" -E "\bRegex\(|Pattern\.compile" tool/src/main; then
+            echo "::error::Regex in tool/src/main. Android's Pattern is ICU-backed and rejects patterns OpenJDK accepts, so a JVM-green test proves nothing. Parse with MiniJson, or add an explicit exemption here with a comment saying why the pattern is safe on ICU." >&2
+            exit 1
+          fi
+          echo "ok: no regex in the tool module"
+
       - name: Generated SDK registry is in the APK
         # The SDK finds @InitialScreen through a KSP-generated registry that
         # LightActivity loads with Class.forName. If KSP isn't wired up the class
