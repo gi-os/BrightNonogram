@@ -410,23 +410,41 @@ private fun Play(view: View.Play, vm: NonogramViewModel) {
     val solved by vm.solved.collectAsState()
     val canUndo by vm.canUndo.collectAsState()
 
+    // Chrome on this view is measured in cells: every 40dp spent above or below
+    // the board is roughly one whole row of a 10x10 gone. So Home, the hidden
+    // title and the seed share one line instead of taking three, the spacers are
+    // gone, and the grid area gets the full screen width — its own clue gutter is
+    // the only inset it needs.
     Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp, vertical = 12.dp),
+        modifier = Modifier.fillMaxSize().padding(vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Header(
-            title = if (solved) "Solved" else "",
-            trailing = view.seed?.let { "#$it" },
-        ) { vm.show(View.Menu) }
-
-        // The name is the reward, so it stays hidden until the grid is finished.
-        LightText(
-            text = if (solved) view.reveal else "· · ·",
-            variant = LightTextVariant.Copy,
-            lighten = !solved,
-        )
-
-        Spacer(Modifier.height(10.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            LightText(
+                text = "‹ Home",
+                variant = LightTextVariant.Detail,
+                modifier = Modifier
+                    .lightClickable { vm.show(View.Menu) }
+                    .padding(vertical = 4.dp),
+            )
+            // Dots while playing: the picture's name is the reward, so it stays
+            // hidden. It gets its own line below once solved, where the space no
+            // longer costs the player anything.
+            LightText(
+                text = if (solved) "Solved" else "· · ·",
+                variant = LightTextVariant.Detail,
+                lighten = true,
+            )
+            LightText(
+                text = view.seed?.let { "#$it" } ?: "",
+                variant = LightTextVariant.Detail,
+                lighten = true,
+            )
+        }
 
         PicrossGrid(
             board = board,
@@ -435,10 +453,16 @@ private fun Play(view: View.Play, vm: NonogramViewModel) {
             onChanged = { vm.onBoardChanged() },
         )
 
-        Spacer(Modifier.height(10.dp))
+        if (solved) {
+            LightText(
+                text = view.reveal,
+                variant = LightTextVariant.Copy,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+        }
 
         Row(
-            Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
         ) {

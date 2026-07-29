@@ -45,8 +45,15 @@ import com.thelightphone.sdk.ui.LightThemeTokens
  */
 private val CLUE_FONT = 13.sp
 
-/** Width reserved per row-clue number — two digits at [CLUE_FONT]. */
-private val CLUE_SLOT = 13.dp
+/**
+ * Width reserved per row-clue number, by how many digits it actually has.
+ *
+ * Reserving two-digit width for every clue is most of a cell's worth of wasted
+ * gutter on a board whose clues are all single digits — and since the grid is
+ * centred, every dp of gutter costs two dp of board.
+ */
+private val CLUE_SLOT_1 = 9.dp
+private val CLUE_SLOT_2 = 14.dp
 
 /** Height reserved per stacked column-clue number, with room to spare. */
 private val CLUE_LINE = 18.dp
@@ -82,8 +89,12 @@ fun PicrossGrid(
         // maximum also hands spare room back to the cells when clues are short.
         val maxRowClues = remember(board) { board.rowClues.maxOf { it.size } }
         val maxColClues = remember(board) { board.colClues.maxOf { it.size } }
+        val clueSlot: Dp = remember(board) {
+            val twoDigits = board.rowClues.any { line -> line.any { it >= 10 } }
+            if (twoDigits) CLUE_SLOT_2 else CLUE_SLOT_1
+        }
 
-        val rowGutter: Dp = (CLUE_SLOT * maxRowClues).coerceAtLeast(22.dp)
+        val rowGutter: Dp = (clueSlot * maxRowClues).coerceAtLeast(22.dp)
         val colGutter: Dp = (CLUE_LINE * maxColClues).coerceAtLeast(22.dp)
 
         // Fit the grid to whichever axis runs out first. Without the height
@@ -137,7 +148,7 @@ fun PicrossGrid(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             for (n in board.rowClues[r]) {
-                                Box(Modifier.width(CLUE_SLOT), Alignment.Center) {
+                                Box(Modifier.width(clueSlot), Alignment.Center) {
                                     ClueNumber(n, satisfied)
                                 }
                             }
