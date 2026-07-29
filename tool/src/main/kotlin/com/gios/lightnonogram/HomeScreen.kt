@@ -235,7 +235,7 @@ private fun Menu(state: ToolState, vm: NonogramViewModel, onEnterSeed: () -> Uni
             "Random",
             if (next == null) "You've finished every picture" else "Endless, named, generated here",
         ) { vm.playRandom(state) }
-        MenuRow("From a seed", seedNote ?: "Type a number and play that exact puzzle") { onEnterSeed() }
+        MenuRow("From a seed", seedNote ?: "A number, or a word like gargamel") { onEnterSeed() }
         MenuRow("Your collection", collectionSubtitle(state)) { vm.show(View.Collected) }
         MenuRow("Settings", if (state.autoCross) "Auto-mark on" else "Auto-mark off") {
             vm.show(View.Settings)
@@ -335,7 +335,7 @@ private fun CollectedView(state: ToolState, vm: NonogramViewModel) {
                     }
                     Spacer(Modifier.height(4.dp))
                     LightText(
-                        text = Names.nameFor(made.seed),
+                        text = made.label ?: Names.nameFor(made.seed),
                         variant = LightTextVariant.Detail,
                     )
                     LightText(
@@ -376,6 +376,7 @@ private fun Play(view: View.Play, vm: NonogramViewModel) {
     val board = view.board
     val tool by vm.tool.collectAsState()
     val solved by vm.solved.collectAsState()
+    val canUndo by vm.canUndo.collectAsState()
 
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp, vertical = 12.dp),
@@ -426,7 +427,7 @@ private fun Play(view: View.Play, vm: NonogramViewModel) {
                 LightText(
                     text = "Undo",
                     variant = LightTextVariant.Detail,
-                    lighten = !board.canUndo,
+                    lighten = !canUndo,
                     modifier = Modifier.lightClickable { vm.undo() },
                 )
                 LightText(
@@ -456,6 +457,17 @@ class NonogramViewModel(
 
     /** Feedback for the seed row when a typed seed can't be used. */
     val seedMessage = MutableStateFlow<String?>(null)
+
+    /**
+     * Whether Undo is available.
+     *
+     * Board is deliberately plain mutable state, which the grid redraws from via
+     * its own counter — but nothing outside the grid recomposed, so the Undo label
+     * stayed greyed out until some *other* change happened to repaint it. Mirroring
+     * it into a flow is what makes the button light up on the stroke that created
+     * the undo, rather than the one after.
+     */
+    val canUndo = MutableStateFlow(false)
 
     private val packs = HashMap<Int, List<Puzzle>>()
 
@@ -493,6 +505,7 @@ class NonogramViewModel(
         solved.value = false
         tool.value = Tool.FILL
         view.value = View.Play(board, puzzle, made, reveal)
+        refreshUndo()
     }
 
     fun play(puzzle: Puzzle, s: ToolState) = begin(
@@ -525,24 +538,25 @@ class NonogramViewModel(
     fun playTypedSeed(typed: String) {
         val s = state.value
         val cleaned = typed.trim()
-        val seed = cleaned.toIntOrNull()
+        val seed = Names.seedFromText(cleaned)
         if (seed == null) {
-            seedMessage.value =
-                if (cleaned.isEmpty()) "Type a number and play that exact puzzle"
-                else "\"${cleaned.take(12)}\" isn't a whole number"
+            seedMessage.value = "Type a number or a word"
             return
         }
         val solution = Generate.fromSeed(seed, s.size)
         if (solution == null) {
-            seedMessage.value = "Seed $seed makes no ${s.size}×${s.size} puzzle — try another"
+            seedMessage.value = "That seed makes no ${s.size}×${s.size} puzzle — try another"
             return
         }
+        // A word is what the player will remember the puzzle by, so keep it as the
+        // title. A number carries no meaning, so those get a generated name.
+        val label = if (cleaned.toIntOrNull() == null) Made.sanitizeLabel(cleaned) else null
         seedMessage.value = null
         begin(
             board = Board(s.size, s.size, solution, autoCross = s.autoCross),
             puzzle = null,
-            made = Made(seed, s.size),
-            reveal = Names.nameFor(seed),
+            made = Made(seed, s.size, label),
+            reveal = label ?: Names.nameFor(seed),
         )
     }
 
@@ -552,7 +566,7 @@ class NonogramViewModel(
             board = Board(made.size, made.size, solution, autoCross = s.autoCross),
             puzzle = null,
             made = made,
-            reveal = Names.nameFor(made.seed),
+            reveal = made.label ?: Names.nameFor(made.seed),
         )
     }
 
@@ -560,11 +574,19 @@ class NonogramViewModel(
         tool.value = if (tool.value == Tool.FILL) Tool.CROSS else Tool.FILL
     }
 
-    fun undo() { (view.value as? View.Play)?.board?.undo() }
+    fun undo() {
+        (view.value as? View.Play)?.board?.undo()
+        refreshUndo()
+    }
 
     fun clearBoard() {
         (view.value as? View.Play)?.board?.clear()
         solved.value = false
+        refreshUndo()
+    }
+
+    private fun refreshUndo() {
+        canUndo.value = (view.value as? View.Play)?.board?.canUndo == true
     }
 
     fun setAutoCross(enabled: Boolean) {
@@ -579,6 +601,7 @@ class NonogramViewModel(
 
     /** Called after every stroke. Records the win exactly once. */
     fun onBoardChanged() {
+        refreshUndo()
         val playing = view.value as? View.Play ?: return
         if (solved.value || !playing.board.isSolved) return
         solved.value = true

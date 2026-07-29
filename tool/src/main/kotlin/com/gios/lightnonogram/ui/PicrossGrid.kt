@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
@@ -26,16 +27,29 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.gios.lightnonogram.game.Board
 import com.gios.lightnonogram.game.Mark
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
 import com.gios.lightnonogram.game.Tool
-import com.thelightphone.sdk.ui.LightText
-import com.thelightphone.sdk.ui.LightTextVariant
 import com.thelightphone.sdk.ui.LightThemeTokens
 
-/** Width reserved per row-clue number. Two digits of Detail text fit in this. */
-private val CLUE_SLOT = 15.dp
+/**
+ * Clue digits are drawn with an explicit size rather than a LightText variant.
+ *
+ * The SDK's variants are declared in design-pixels and rescaled per screen at
+ * runtime, so their real line height isn't a number this file can know. Reserving
+ * a guessed number of dp per line is what cropped the third clue off a column.
+ * Here the font size and the space reserved for it are set together, so they
+ * can't disagree.
+ */
+private val CLUE_FONT = 11.sp
 
-/** Height reserved per column-clue number. */
-private val CLUE_LINE = 15.dp
+/** Width reserved per row-clue number — two digits at [CLUE_FONT]. */
+private val CLUE_SLOT = 11.dp
+
+/** Height reserved per stacked column-clue number, with room to spare. */
+private val CLUE_LINE = 16.dp
 
 /**
  * The playfield: clue gutters plus the grid itself.
@@ -61,10 +75,6 @@ fun PicrossGrid(
     // context, so tokens have to be captured here.
     val ink = LightThemeTokens.colors.content
 
-    // Centred, not left-aligned. The clue gutter plus the grid rarely fills the
-    // width exactly — the grid is quantised to whole cells — and the leftover
-    // used to pile up on one side, which made the board look misaligned rather
-    // than merely inset.
     BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
         // Size the clue gutters from the clues the puzzle actually has, not from
         // a fixed fraction. A 15x15 needs room for more numbers than a 10x10, and
@@ -73,19 +83,32 @@ fun PicrossGrid(
         val maxRowClues = remember(board) { board.rowClues.maxOf { it.size } }
         val maxColClues = remember(board) { board.colClues.maxOf { it.size } }
 
-        val rowGutter: Dp = (CLUE_SLOT * maxRowClues).coerceAtLeast(28.dp)
-        val colGutter: Dp = (CLUE_LINE * maxColClues).coerceAtLeast(28.dp)
+        val rowGutter: Dp = (CLUE_SLOT * maxRowClues).coerceAtLeast(22.dp)
+        val colGutter: Dp = (CLUE_LINE * maxColClues).coerceAtLeast(22.dp)
 
         // Fit the grid to whichever axis runs out first. Without the height
         // constraint a 15x15 is taller than the display and the bottom rows sit
         // under the back bar.
-        val side: Dp = minOf(maxWidth - rowGutter, maxHeight - colGutter)
+        //
+        // Twice the row gutter, because the grid itself is centred (below) and so
+        // needs the same slack on the right as the clues take on the left. That
+        // costs some size, which is why the gutters above are as tight as the
+        // digits allow.
+        val side: Dp = minOf(maxWidth - rowGutter * 2, maxHeight - colGutter)
         val cell: Dp = side / board.width
         val gridSide: Dp = cell * board.width
         val gutter: Dp = rowGutter
 
-        // Width-wrapped so the enclosing Box can centre it.
-        Column(Modifier.width(gutter + gridSide)) {
+        // Centre the *grid*, not the grid-plus-clues block. Centring the block
+        // left the board sitting half a gutter right of centre, which read as
+        // misalignment. Shifting the wrapped block right by half the gutter puts
+        // the grid square on the screen's centre line and lets the clues hang off
+        // to its left.
+        Column(
+            Modifier
+                .width(gutter + gridSide)
+                .offset(x = gutter / 2),
+        ) {
             // ---- column clues -------------------------------------------
             Row {
                 Spacer(Modifier.width(gutter).height(colGutter))
@@ -234,13 +257,16 @@ fun PicrossGrid(
  */
 @Composable
 private fun ClueNumber(n: Int, satisfied: Boolean) {
-    LightText(
+    // Colour still comes from the theme; only the metrics are pinned locally.
+    val ink = LightThemeTokens.colors.content
+    BasicText(
         text = n.toString(),
-        variant = LightTextVariant.Detail,
-        // `lighten` is the SDK's own way of saying "secondary", so a satisfied
-        // line dims using Light's palette rather than an alpha value of my
-        // choosing that might dither badly on the display.
-        lighten = satisfied,
+        style = TextStyle(
+            fontSize = CLUE_FONT,
+            lineHeight = CLUE_FONT,
+            color = if (satisfied) ink.copy(alpha = 0.3f) else ink,
+            textAlign = TextAlign.Center,
+        ),
     )
 }
 

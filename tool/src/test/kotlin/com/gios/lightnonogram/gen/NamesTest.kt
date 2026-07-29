@@ -142,4 +142,99 @@ class NamesTest {
         assertEquals(100, Generate.fromSeed(seed, 10)!!.size)
         assertEquals(225, Generate.fromSeed(seed, 15)!!.size)
     }
+
+    // ---- word seeds, Minecraft-style --------------------------------------
+
+    /**
+     * Minecraft hashes the seed box when it isn't a number, which is why
+     * "gargamel" is a world people can pass around. String.hashCode is specified
+     * by the JDK, so the same word gives the same puzzle on any device — the whole
+     * point of a shareable seed.
+     */
+    @Test
+    fun `a word is a seed, and always the same seed`() {
+        assertEquals("gargamel".hashCode(), Names.seedFromText("gargamel"))
+        assertEquals(Names.seedFromText("gargamel"), Names.seedFromText("  gargamel  "))
+        assertEquals(Names.seedFromText("gargamel"), Names.seedFromText("gargamel"))
+        // Case and spelling matter, as they do in Minecraft.
+        assertTrue(Names.seedFromText("gargamel") != Names.seedFromText("Gargamel"))
+    }
+
+    @Test
+    fun `digits are read as a number, not hashed`() {
+        assertEquals(4821, Names.seedFromText("4821"))
+        assertEquals(-7, Names.seedFromText("-7"))
+        assertEquals(0, Names.seedFromText("0"))
+        // Too big for an Int, so it falls back to the hash rather than failing.
+        assertEquals("99999999999".hashCode(), Names.seedFromText("99999999999"))
+    }
+
+    @Test
+    fun `blank text is not a seed`() {
+        assertNull(Names.seedFromText(""))
+        assertNull(Names.seedFromText("   "))
+    }
+
+    @Test
+    fun `words produce real puzzles at both sizes`() {
+        for (word in listOf("gargamel", "basil", "alex", "light phone", "a", "404 not a number")) {
+            val seed = Names.seedFromText(word)!!
+            for (size in listOf(10, 15)) {
+                val sol = Generate.fromSeed(seed, size)
+                assertTrue(sol != null, "'$word' produced nothing at size $size")
+                assertTrue(
+                    Generate.isUniquelySolvable(sol!!, size, size),
+                    "'$word' at $size is not uniquely solvable",
+                )
+            }
+        }
+    }
+
+    // ---- labels ------------------------------------------------------------
+
+    @Test
+    fun `a typed word is kept as the label and survives the round trip`() {
+        val m = Made(Names.seedFromText("gargamel")!!, 10, "gargamel")
+        val back = MadeCollection().with(m).encode()
+        assertEquals(listOf(m), MadeCollection.decode(back).entries)
+    }
+
+    @Test
+    fun `labels are sanitised so they cannot break the encoding`() {
+        // Colons and commas are the separators; neither may survive.
+        assertEquals("ab", Made.sanitizeLabel("a:b"))
+        assertEquals("ab", Made.sanitizeLabel("a,b"))
+        assertEquals("hello world", Made.sanitizeLabel("  hello   world  "))
+        assertEquals("keep-this_one", Made.sanitizeLabel("keep-this_one"))
+        assertNull(Made.sanitizeLabel(":::"))
+        assertNull(Made.sanitizeLabel("   "))
+        assertNull(Made.sanitizeLabel(null))
+        assertTrue(Made.sanitizeLabel("x".repeat(200))!!.length <= Made.MAX_LABEL)
+    }
+
+    @Test
+    fun `a label with separators in it still decodes to one entry`() {
+        val nasty = Made(5, 10, Made.sanitizeLabel("a:b,c"))
+        val encoded = MadeCollection().with(nasty).encode()
+        val back = MadeCollection.decode(encoded)
+        assertEquals(1, back.size, "encoded as: '$encoded'")
+        assertEquals(5, back.entries.first().seed)
+    }
+
+    @Test
+    fun `identity ignores the label, so replaying does not duplicate a tile`() {
+        val c = MadeCollection()
+            .with(Made(9, 10, "gargamel"))
+            .with(Made(9, 10, null))
+        assertEquals(1, c.size, "same seed and size is the same piece")
+        assertTrue(c.has(Made(9, 10)))
+    }
+
+    @Test
+    fun `entries without a label still decode, as older ones have none`() {
+        val back = MadeCollection.decode("10:1,15:2:some name")
+        assertEquals(2, back.size)
+        assertNull(back.entries[0].label)
+        assertEquals("some name", back.entries[1].label)
+    }
 }

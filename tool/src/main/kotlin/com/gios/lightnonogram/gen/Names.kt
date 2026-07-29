@@ -35,6 +35,23 @@ object Names {
         return list[((h ushr 16).toInt() and 0x7FFFFFFF) % list.size]
     }
 
+    /**
+     * Turn typed text into a seed.
+     *
+     * This is what Minecraft does: if the box doesn't parse as a number, it hashes
+     * the string instead, which is why "gargamel" is a world you can share. Same
+     * mechanism here — `String.hashCode` is specified by the JDK as
+     * `s[0]*31^(n-1) + …`, so it's identical on every device and version, which is
+     * exactly the property a shareable seed needs.
+     *
+     * @return the number typed, or the hash of the text, or null if blank.
+     */
+    fun seedFromText(text: String): Int? {
+        val trimmed = text.trim()
+        if (trimmed.isEmpty()) return null
+        return trimmed.toIntOrNull() ?: trimmed.hashCode()
+    }
+
     fun nameFor(seed: Int): String {
         val shape = ((mix(seed.toLong() + 0x5D8) ushr 8).toInt() and 0x7FFFFFFF) % 5
         val adj = pick(seed, 1, ADJECTIVES)

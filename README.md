@@ -14,7 +14,7 @@ to build or sideload it.
 |---|---|
 | `tool/` game core — board, drag-fill, auto-mark, win, progress | **Working.** |
 | `tool/` on-device generator + naming + collection | **Working.** |
-| Test suite | **50 tests**, all green. |
+| Test suite | **61 tests**, all green. |
 | `tool/` Compose UI + SDK screen | **Builds and runs on device.** |
 | `art/icons-10.txt` — 69 hand-drawn 10×10 | **Done.** All uniquely solvable, CC0. |
 | `art/icons-15.txt` — 34 hand-drawn 15×15 | **Done.** All uniquely solvable, CC0. |
@@ -46,7 +46,7 @@ Design decisions that carry most of the feel:
 
 Tap Random and you get a fresh puzzle at the current size, titled something like *The Umbral Cartographer* or *Rookhaven's Sable Orrery*. Solve it and it joins **Your collection** — a grid of everything you've finished.
 
-You can also type a seed in yourself — **From a seed** on the menu — and the seed of whatever you're playing shows in the header, so one worth keeping can be written down and typed back. Text entry on LightOS is a screen of its own hosting the Light keyboard, which is why this is the tool's only second screen.
+You can also type a seed in yourself — **From a seed** on the menu — and it takes a word as readily as a number. That's the same trick Minecraft uses: if the box doesn't parse as a number it hashes the text instead, which is why `gargamel` is a world you can pass to someone else. `String.hashCode` is specified by the JDK, so the same word gives the same puzzle on any device. Type a word and it becomes the puzzle's title; type a number and you get a generated name. The seed of whatever you're playing shows in the header, so one worth keeping can be written down and typed back. Text entry on LightOS is a screen of its own hosting the Light keyboard, which is why this is the tool's only second screen.
 
 The whole collection is a few characters per entry: a seed and a size. The picture and the name are both derived from the seed, so nothing is stored but the number that made them. Around 17,000 name combinations, and the seed is run through SplitMix64's finalizer first, because seeds come from the clock and consecutive puzzles are milliseconds apart — a weaker mix would name a whole session almost identically.
 
@@ -140,7 +140,7 @@ The pack compiles into the APK as a Kotlin string constant rather than loading f
 ## Tests
 
 ```bash
-./gradlew :tool:testDebugUnitTest        # 50 game, generator and naming tests
+./gradlew :tool:testDebugUnitTest        # 61 game, generator and naming tests
 ./gradlew -p tools/picross-gen test      # solver correctness, brute-force cross-check
 ```
 
