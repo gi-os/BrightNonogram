@@ -14,7 +14,7 @@ to build or sideload it.
 |---|---|
 | `tool/` game core — board, drag-fill, auto-mark, win, progress | **Working.** |
 | `tool/` on-device generator + naming + collection | **Working.** |
-| Test suite | **61 tests**, all green. |
+| Test suite | **70 tests**, all green. |
 | `tool/` Compose UI + SDK screen | **Builds and runs on device.** |
 | `art/icons-10.txt` — 69 hand-drawn 10×10 | **Done.** All uniquely solvable, CC0. |
 | `art/icons-15.txt` — 34 hand-drawn 15×15 | **Done.** All uniquely solvable, CC0. |
@@ -40,13 +40,15 @@ Design decisions that carry most of the feel:
 - **Dimmed clues.** A satisfied line's numbers fade, so you know where to stop looking.
 - **A dot, not an ✕.** Auto-marking covers many cells at once, and a grid full of ✕ is loud. Dots stay quiet.
 - **Auto-mark is a setting.** On by default because it saves a lot of dull tapping, off for anyone who wants the grid to hold only the marks they placed. Turning it off also skips the free crosses on lines clued `0`.
-- **An explicit Home on every view.** LightOS's hardware back can't be intercepted: `LightActivity` wires its back dispatcher straight to its own `goBack()`, which pops the SDK's stack and calls `finish()` when it empties. `LightScreen.goBack` — the one that consults `LightViewModel.onBackPressed` — is only reached if a tool calls it itself. With one screen on the stack, back always closes the tool, so every view carries its own way back.
+- **Two halves, on the SDK's own bottom bar.** Play holds the campaign, random puzzles and settings; Collection holds what you've made. The bar is hidden while a board is open, because it costs about four grid units of height and on the board every one of those belongs to the grid.
+- **Continue resumes whatever you last touched**, campaign or generated. One slot, not one per puzzle — that's what "continue" means, and a single slot gives it for free. The board is saved after every stroke as two bit-per-cell masks, about eighty characters.
+- **An explicit Home on the board.** LightOS's hardware back can't be intercepted: `LightActivity` wires its back dispatcher straight to its own `goBack()`, which pops the SDK's stack and calls `finish()` when it empties. `LightScreen.goBack` — the one that consults `LightViewModel.onBackPressed` — is only reached if a tool calls it itself. With one screen on the stack, back always closes the tool, so every view carries its own way back.
 
 ## Generated puzzles get names
 
 Tap Random and you get a fresh puzzle at the current size, titled something like *The Umbral Cartographer* or *Rookhaven's Sable Orrery*. Solve it and it joins **Your collection** — a grid of everything you've finished.
 
-You can also type a seed in yourself — **From a seed** on the menu — and it takes a word as readily as a number. That's the same trick Minecraft uses: if the box doesn't parse as a number it hashes the text instead, which is why `gargamel` is a world you can pass to someone else. `String.hashCode` is specified by the JDK, so the same word gives the same puzzle on any device. Type a word and it becomes the puzzle's title; type a number and you get a generated name. The seed of whatever you're playing shows in the header, so one worth keeping can be written down and typed back. Text entry on LightOS is a screen of its own hosting the Light keyboard, which is why this is the tool's only second screen.
+You can also type a seed in yourself — **From a seed** on the menu — and it takes a word as readily as a number. That's the same trick Minecraft uses: if the box doesn't parse as a number it hashes the text instead, which is how word seeds work there. `String.hashCode` is specified by the JDK, so the same word gives the same puzzle on any device. Type a word and it becomes the puzzle's title; type a number and you get a generated name. The seed of whatever you're playing shows in the header, so one worth keeping can be written down and typed back. Text entry on LightOS is a screen of its own hosting the Light keyboard, which is why this is the tool's only second screen.
 
 The whole collection is a few characters per entry: a seed and a size. The picture and the name are both derived from the seed, so nothing is stored but the number that made them. Around 17,000 name combinations, and the seed is run through SplitMix64's finalizer first, because seeds come from the clock and consecutive puzzles are milliseconds apart — a weaker mix would name a whole session almost identically.
 
@@ -140,7 +142,7 @@ The pack compiles into the APK as a Kotlin string constant rather than loading f
 ## Tests
 
 ```bash
-./gradlew :tool:testDebugUnitTest        # 61 game, generator and naming tests
+./gradlew :tool:testDebugUnitTest        # 70 game, generator, naming and session tests
 ./gradlew -p tools/picross-gen test      # solver correctness, brute-force cross-check
 ```
 

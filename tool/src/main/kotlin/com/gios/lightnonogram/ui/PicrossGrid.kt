@@ -43,13 +43,13 @@ import com.thelightphone.sdk.ui.LightThemeTokens
  * Here the font size and the space reserved for it are set together, so they
  * can't disagree.
  */
-private val CLUE_FONT = 11.sp
+private val CLUE_FONT = 13.sp
 
 /** Width reserved per row-clue number — two digits at [CLUE_FONT]. */
-private val CLUE_SLOT = 11.dp
+private val CLUE_SLOT = 13.dp
 
 /** Height reserved per stacked column-clue number, with room to spare. */
-private val CLUE_LINE = 16.dp
+private val CLUE_LINE = 18.dp
 
 /**
  * The playfield: clue gutters plus the grid itself.
@@ -99,15 +99,17 @@ fun PicrossGrid(
         val gridSide: Dp = cell * board.width
         val gutter: Dp = rowGutter
 
-        // Centre the *grid*, not the grid-plus-clues block. Centring the block
-        // left the board sitting half a gutter right of centre, which read as
-        // misalignment. Shifting the wrapped block right by half the gutter puts
-        // the grid square on the screen's centre line and lets the clues hang off
-        // to its left.
+        // Centre the *grid*, not the grid-plus-clues block.
+        //
+        // The Box centres a block of width (gutter + side), which puts the grid's
+        // left edge at (maxWidth - gutter - side)/2 + gutter — i.e. half a gutter
+        // right of where a centred grid belongs. So the block shifts LEFT by half
+        // a gutter. (It shifted right at first, which moved the grid a full gutter
+        // off centre and looked worse than doing nothing.)
         Column(
             Modifier
                 .width(gutter + gridSide)
-                .offset(x = gutter / 2),
+                .offset(x = -gutter / 2),
         ) {
             // ---- column clues -------------------------------------------
             Row {

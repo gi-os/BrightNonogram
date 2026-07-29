@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.gios.lightnonogram.game.Made
 import com.gios.lightnonogram.game.MadeCollection
 import com.gios.lightnonogram.game.Progress
+import com.gios.lightnonogram.game.Session
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -18,6 +19,8 @@ data class ToolState(
     val made: MadeCollection = MadeCollection(),
     val autoCross: Boolean = true,
     val size: Int = 10,
+    /** The board the player last touched, if they left it unfinished. */
+    val session: Session? = null,
 )
 
 /**
@@ -35,6 +38,7 @@ class ProgressStore(private val dataStore: DataStore<Preferences>) {
     private val madeKey = stringPreferencesKey("made_puzzles")
     private val autoCrossKey = booleanPreferencesKey("auto_cross")
     private val sizeKey = intPreferencesKey("puzzle_size")
+    private val sessionKey = stringPreferencesKey("session")
 
     val state: Flow<ToolState> = dataStore.data.map { p ->
         ToolState(
@@ -44,6 +48,7 @@ class ProgressStore(private val dataStore: DataStore<Preferences>) {
             // Ignore anything other than the two sizes that ship, so a stale or
             // hand-edited preference can't select a pack that doesn't exist.
             size = p[sizeKey]?.takeIf { it == 10 || it == 15 } ?: 10,
+            session = Session.decode(p[sessionKey]),
         )
     }
 
@@ -58,6 +63,19 @@ class ProgressStore(private val dataStore: DataStore<Preferences>) {
         dataStore.edit { p ->
             p[madeKey] = MadeCollection.decode(p[madeKey]).with(made).encode()
         }
+    }
+
+    /**
+     * Remember where the player is. Written after every stroke, which is what
+     * LightSolitaire does with its deal — preferences coalesce writes and the
+     * payload is under a hundred characters.
+     */
+    suspend fun saveSession(session: Session) {
+        dataStore.edit { it[sessionKey] = session.encode() }
+    }
+
+    suspend fun clearSession() {
+        dataStore.edit { it.remove(sessionKey) }
     }
 
     suspend fun setAutoCross(enabled: Boolean) {

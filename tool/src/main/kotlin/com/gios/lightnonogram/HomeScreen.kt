@@ -35,6 +35,7 @@ import com.gios.lightnonogram.data.ToolState
 import com.gios.lightnonogram.game.Board
 import com.gios.lightnonogram.game.Made
 import com.gios.lightnonogram.game.Puzzle
+import com.gios.lightnonogram.game.Session
 import com.gios.lightnonogram.game.Tool
 import com.gios.lightnonogram.gen.Generate
 import com.gios.lightnonogram.gen.Names
@@ -44,6 +45,9 @@ import com.thelightphone.sdk.InitialScreen
 import com.thelightphone.sdk.LightScreen
 import com.thelightphone.sdk.LightViewModel
 import com.thelightphone.sdk.SealedLightActivity
+import com.thelightphone.sdk.ui.LightBarButton
+import com.thelightphone.sdk.ui.LightBottomBar
+import com.thelightphone.sdk.ui.LightIcons
 import com.thelightphone.sdk.ui.LightText
 import com.thelightphone.sdk.ui.LightTextVariant
 import com.thelightphone.sdk.ui.LightTheme
@@ -134,18 +138,44 @@ class HomeScreen(
         failure?.let { StartupFailure(it); return@Content }
 
         LightTheme(colors = themeColors) {
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(LightThemeTokens.colors.background)
                     .padding(bottom = BACK_BUTTON_INSET),
             ) {
-                when (val v = view) {
-                    is View.Menu -> Menu(state, viewModel, onEnterSeed = ::promptForSeed)
-                    is View.Gallery -> Gallery(state, viewModel)
-                    is View.Collected -> CollectedView(state, viewModel)
-                    is View.Settings -> Settings(state, viewModel)
-                    is View.Play -> Play(v, viewModel)
+                Box(Modifier.fillMaxWidth().weight(1f)) {
+                    when (val v = view) {
+                        is View.Menu -> Menu(state, viewModel, onEnterSeed = ::promptForSeed)
+                        is View.Gallery -> Gallery(state, viewModel)
+                        is View.Collected -> CollectedView(state, viewModel)
+                        is View.Settings -> Settings(state, viewModel)
+                        is View.Play -> Play(v, viewModel)
+                    }
+                }
+
+                // The bar is the way between the two halves of the tool, and — since
+                // hardware back closes the tool outright — the way out of the
+                // campaign and settings views too.
+                //
+                // Hidden while a board is open. It costs about four grid units of
+                // height, and on the board every one of those goes to the grid
+                // instead; the board carries its own Home instead.
+                if (view !is View.Play) {
+                    LightBottomBar(
+                        items = listOf(
+                            LightBarButton.LightIcon(
+                                icon = LightIcons.PLAY,
+                                contentDescription = "Play",
+                                onClick = { viewModel.show(View.Menu) },
+                            ),
+                            LightBarButton.LightIcon(
+                                icon = LightIcons.LARGE_LIST,
+                                contentDescription = "Your collection",
+                                onClick = { viewModel.show(View.Collected) },
+                            ),
+                        ),
+                    )
                 }
             }
         }
@@ -227,16 +257,18 @@ private fun Menu(state: ToolState, vm: NonogramViewModel, onEnterSeed: () -> Uni
 
         Spacer(Modifier.height(28.dp))
 
-        if (next != null) {
+        val resumable = state.session
+        if (resumable != null) {
+            MenuRow("Continue", vm.describeSession(resumable)) { vm.resume(resumable) }
+        } else if (next != null) {
             MenuRow("Continue", "Puzzle ${puzzles.indexOf(next) + 1}") { vm.play(next, state) }
         }
-        MenuRow("Puzzles", "All ${puzzles.size} pictures") { vm.show(View.Gallery) }
+        MenuRow("Puzzle campaign", "All ${puzzles.size} pictures") { vm.show(View.Gallery) }
         MenuRow(
             "Random",
             if (next == null) "You've finished every picture" else "Endless, named, generated here",
         ) { vm.playRandom(state) }
-        MenuRow("From a seed", seedNote ?: "A number, or a word like gargamel") { onEnterSeed() }
-        MenuRow("Your collection", collectionSubtitle(state)) { vm.show(View.Collected) }
+        MenuRow("From a seed", seedNote ?: "A number or a word") { onEnterSeed() }
         MenuRow("Settings", if (state.autoCross) "Auto-mark on" else "Auto-mark off") {
             vm.show(View.Settings)
         }
@@ -267,7 +299,7 @@ private fun Gallery(state: ToolState, vm: NonogramViewModel) {
     val puzzles = vm.puzzlesFor(state.size)
     Column(Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 12.dp)) {
         Header(
-            title = "${state.size}×${state.size}",
+            title = "Puzzle campaign",
             trailing = "${state.progress.countIn(puzzles)}/${puzzles.size}",
         ) { vm.show(View.Menu) }
         LazyVerticalGrid(
@@ -589,6 +621,59 @@ class NonogramViewModel(
         canUndo.value = (view.value as? View.Play)?.board?.canUndo == true
     }
 
+    /** One line for the Continue row, so it says *what* you'd be resuming. */
+    fun describeSession(session: Session): String {
+        val what = when {
+            session.label != null -> session.label
+            session.isGenerated -> Names.nameFor(session.seed!!)
+            else -> {
+                val p = PuzzleLibrary.byId(session.puzzleId.orEmpty())
+                // Deliberately not the picture's name — that's the reveal.
+                if (p != null) "Puzzle ${runCatching { PuzzleLibrary.numberOf(p) }.getOrDefault(0)}" else "In progress"
+            }
+        }
+        return "$what · ${session.size}×${session.size}"
+    }
+
+    /**
+     * Reopen a saved board.
+     *
+     * Anything that doesn't reconstruct — a pack that no longer has that id, a
+     * seed that stopped generating, a truncated mask — drops the session rather
+     * than failing, and the player just starts something new.
+     */
+    fun resume(session: Session) {
+        val s = state.value
+        if (session.isGenerated) {
+            val seed = session.seed ?: return dropSession()
+            val solution = Generate.fromSeed(seed, session.size) ?: return dropSession()
+            val marks = Session.decodeMarks(session.filled, session.crossed, solution.size)
+                ?: return dropSession()
+            begin(
+                board = Board(session.size, session.size, solution, s.autoCross, marks),
+                puzzle = null,
+                made = Made(seed, session.size, session.label),
+                reveal = session.label ?: Names.nameFor(seed),
+            )
+        } else {
+            val puzzle = PuzzleLibrary.byId(session.puzzleId.orEmpty()) ?: return dropSession()
+            val solution = puzzle.solution()
+            val marks = Session.decodeMarks(session.filled, session.crossed, solution.size)
+                ?: return dropSession()
+            begin(
+                board = Board(puzzle.width, puzzle.height, solution, s.autoCross, marks),
+                puzzle = puzzle,
+                made = null,
+                reveal = puzzle.title?.replaceFirstChar { it.uppercase() } ?: "Solved",
+            )
+        }
+    }
+
+    private fun dropSession() {
+        val s = store ?: return
+        viewModelScope.launch { runCatching { s.clearSession() } }
+    }
+
     fun setAutoCross(enabled: Boolean) {
         val s = store ?: return
         viewModelScope.launch { runCatching { s.setAutoCross(enabled) } }
@@ -603,13 +688,33 @@ class NonogramViewModel(
     fun onBoardChanged() {
         refreshUndo()
         val playing = view.value as? View.Play ?: return
-        if (solved.value || !playing.board.isSolved) return
+        val s = store
+        if (solved.value) return
+
+        if (!playing.board.isSolved) {
+            // Save after every stroke. LightSolitaire persists its deal the same
+            // way; the payload is under a hundred characters and preferences
+            // coalesce the writes.
+            if (s != null) {
+                val session = Session.of(
+                    board = playing.board,
+                    puzzleId = playing.puzzle?.id,
+                    seed = playing.made?.seed,
+                    label = playing.made?.label,
+                )
+                viewModelScope.launch { runCatching { s.saveSession(session) } }
+            }
+            return
+        }
+
         solved.value = true
-        val s = store ?: return
+        if (s == null) return
         viewModelScope.launch {
             runCatching {
                 playing.puzzle?.let { s.markSolved(it.id) }
                 playing.made?.let { s.addMade(it) }
+                // Finished, so there's nothing left to continue.
+                s.clearSession()
             }
         }
     }

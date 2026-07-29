@@ -28,6 +28,13 @@ class Board(
      * it's a setting rather than a rule.
      */
     private val autoCross: Boolean = true,
+    /**
+     * Marks to start from, for resuming a saved board. Skips the free
+     * [autoCross] pass, since a restored grid already carries whatever that pass
+     * put there the first time — re-running it would add crosses the player may
+     * have deliberately cleared.
+     */
+    restore: Array<Mark>? = null,
 ) {
     init {
         require(solution.size == width * height) { "solution size != width*height" }
@@ -43,10 +50,14 @@ class Board(
     }
 
     init {
-        // A line clued [0] is known-empty the moment you read it, so cross it
-        // out up front. Costs the player nothing and saves a row of dull taps —
-        // most of the bundled pictures have blank border rows.
-        if (autoCross) crossSatisfiedLines(record = false)
+        if (restore != null && restore.size == marks.size) {
+            for (i in marks.indices) marks[i] = restore[i]
+        } else if (autoCross) {
+            // A line clued [0] is known-empty the moment you read it, so cross it
+            // out up front. Costs the player nothing and saves a row of dull taps —
+            // most of the bundled pictures have blank border rows.
+            crossSatisfiedLines(record = false)
+        }
     }
 
     // ---- stroke state -----------------------------------------------------
