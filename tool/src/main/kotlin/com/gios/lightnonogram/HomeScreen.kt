@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewModelScope
@@ -366,14 +367,21 @@ private fun CollectedView(state: ToolState, vm: NonogramViewModel) {
                         Box(Modifier.size(78.dp))
                     }
                     Spacer(Modifier.height(4.dp))
+                    // Centred explicitly: the Column centres the text block, but a
+                    // name that wraps to two lines still needs its own alignment or
+                    // the second line hangs left under the thumbnail.
                     LightText(
                         text = made.label ?: Names.nameFor(made.seed),
-                        variant = LightTextVariant.Detail,
+                        variant = LightTextVariant.Superfine,
+                        align = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
                     )
                     LightText(
                         text = "${made.size}×${made.size}",
-                        variant = LightTextVariant.Detail,
+                        variant = LightTextVariant.Superfine,
+                        align = TextAlign.Center,
                         lighten = true,
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }

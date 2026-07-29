@@ -43,7 +43,7 @@ import com.thelightphone.sdk.ui.LightThemeTokens
  * Here the font size and the space reserved for it are set together, so they
  * can't disagree.
  */
-private val CLUE_FONT = 13.sp
+private val CLUE_FONT = 15.sp
 
 /**
  * Width reserved per row-clue number, by how many digits it actually has.
@@ -52,11 +52,16 @@ private val CLUE_FONT = 13.sp
  * gutter on a board whose clues are all single digits — and since the grid is
  * centred, every dp of gutter costs two dp of board.
  */
-private val CLUE_SLOT_1 = 9.dp
-private val CLUE_SLOT_2 = 14.dp
+private val CLUE_SLOT_1 = 10.dp
+private val CLUE_SLOT_2 = 16.dp
 
-/** Height reserved per stacked column-clue number, with room to spare. */
-private val CLUE_LINE = 18.dp
+/**
+ * Height reserved per stacked column-clue number.
+ *
+ * Kept at roughly 1.35x [CLUE_FONT]. That headroom is the whole reason a third
+ * clue in a column stopped being cropped, so it moves up whenever the font does.
+ */
+private val CLUE_LINE = 20.dp
 
 /**
  * The playfield: clue gutters plus the grid itself.
