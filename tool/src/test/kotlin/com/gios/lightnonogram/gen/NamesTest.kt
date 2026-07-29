@@ -107,4 +107,39 @@ class NamesTest {
             assertTrue(replayed >= 35, "only $replayed/40 seeds regenerated at size $size")
         }
     }
+
+    // ---- typed seeds ------------------------------------------------------
+
+    /**
+     * A player can type any number, so the awkward values are the interesting
+     * ones: negatives, zero and the ends of the Int range all have to produce a
+     * real puzzle rather than an empty grid or a crash.
+     */
+    @Test
+    fun `awkward typed seeds still make real puzzles`() {
+        val seeds = listOf(0, 1, -1, 7, -4821, 999_999_999, Int.MAX_VALUE, Int.MIN_VALUE)
+        for (size in listOf(10, 15)) {
+            for (seed in seeds) {
+                val sol = Generate.fromSeed(seed, size)
+                assertTrue(sol != null, "seed $seed produced nothing at size $size")
+                assertEquals(size * size, sol!!.size)
+                val filled = sol.count { it == Generate.FILLED }
+                assertTrue(filled in 1 until sol.size, "seed $seed at $size is blank or full")
+                assertTrue(
+                    Generate.isUniquelySolvable(sol, size, size),
+                    "seed $seed at size $size is not uniquely solvable",
+                )
+                assertTrue(Names.nameFor(seed).isNotBlank(), "seed $seed has no name")
+            }
+        }
+    }
+
+    @Test
+    fun `a typed seed reproduces the same puzzle at the same size, and differs across sizes`() {
+        val seed = 4821
+        assertTrue(Generate.fromSeed(seed, 10)!!.contentEquals(Generate.fromSeed(seed, 10)!!))
+        assertTrue(Generate.fromSeed(seed, 15)!!.contentEquals(Generate.fromSeed(seed, 15)!!))
+        assertEquals(100, Generate.fromSeed(seed, 10)!!.size)
+        assertEquals(225, Generate.fromSeed(seed, 15)!!.size)
+    }
 }

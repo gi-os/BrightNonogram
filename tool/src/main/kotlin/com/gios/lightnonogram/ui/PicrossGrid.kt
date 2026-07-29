@@ -61,7 +61,11 @@ fun PicrossGrid(
     // context, so tokens have to be captured here.
     val ink = LightThemeTokens.colors.content
 
-    BoxWithConstraints(modifier) {
+    // Centred, not left-aligned. The clue gutter plus the grid rarely fills the
+    // width exactly — the grid is quantised to whole cells — and the leftover
+    // used to pile up on one side, which made the board look misaligned rather
+    // than merely inset.
+    BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
         // Size the clue gutters from the clues the puzzle actually has, not from
         // a fixed fraction. A 15x15 needs room for more numbers than a 10x10, and
         // a fixed multiple of the cell size clipped them; sizing to the real
@@ -80,7 +84,8 @@ fun PicrossGrid(
         val gridSide: Dp = cell * board.width
         val gutter: Dp = rowGutter
 
-        Column {
+        // Width-wrapped so the enclosing Box can centre it.
+        Column(Modifier.width(gutter + gridSide)) {
             // ---- column clues -------------------------------------------
             Row {
                 Spacer(Modifier.width(gutter).height(colGutter))

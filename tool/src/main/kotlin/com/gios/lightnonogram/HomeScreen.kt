@@ -73,7 +73,10 @@ sealed interface View {
         val puzzle: Puzzle?,
         val made: Made?,
         val reveal: String,
-    ) : View
+    ) : View {
+        /** Shown while playing a generated puzzle, so a seed worth keeping can be. */
+        val seed: Int? get() = made?.seed
+    }
 }
 
 /**
@@ -105,6 +108,19 @@ class HomeScreen(
         return NonogramViewModel(store.getOrNull(), store.exceptionOrNull())
     }
 
+    /**
+     * Push the text editor and play whatever comes back.
+     *
+     * Text entry on LightOS is a screen of its own (see [SeedEditorScreen]), so
+     * this is the one navigation the tool does.
+     */
+    private fun promptForSeed() {
+        navigateTo(
+            screenFactory = { SeedEditorScreen(it, "") },
+            resultCallback = { typed -> if (typed != null) viewModel.playTypedSeed(typed) },
+        )
+    }
+
     @Composable
     override fun Content() {
         val view by viewModel.view.collectAsState()
@@ -125,7 +141,7 @@ class HomeScreen(
                     .padding(bottom = BACK_BUTTON_INSET),
             ) {
                 when (val v = view) {
-                    is View.Menu -> Menu(state, viewModel)
+                    is View.Menu -> Menu(state, viewModel, onEnterSeed = ::promptForSeed)
                     is View.Gallery -> Gallery(state, viewModel)
                     is View.Collected -> CollectedView(state, viewModel)
                     is View.Settings -> Settings(state, viewModel)
@@ -191,8 +207,9 @@ private fun Header(title: String, trailing: String? = null, onHome: () -> Unit) 
 }
 
 @Composable
-private fun Menu(state: ToolState, vm: NonogramViewModel) {
+private fun Menu(state: ToolState, vm: NonogramViewModel, onEnterSeed: () -> Unit) {
     val puzzles = vm.puzzlesFor(state.size)
+    val seedNote by vm.seedMessage.collectAsState()
     val done = state.progress.countIn(puzzles)
     val next = puzzles.firstOrNull { !state.progress.has(it.id) }
 
@@ -218,6 +235,7 @@ private fun Menu(state: ToolState, vm: NonogramViewModel) {
             "Random",
             if (next == null) "You've finished every picture" else "Endless, named, generated here",
         ) { vm.playRandom(state) }
+        MenuRow("From a seed", seedNote ?: "Type a number and play that exact puzzle") { onEnterSeed() }
         MenuRow("Your collection", collectionSubtitle(state)) { vm.show(View.Collected) }
         MenuRow("Settings", if (state.autoCross) "Auto-mark on" else "Auto-mark off") {
             vm.show(View.Settings)
@@ -363,7 +381,10 @@ private fun Play(view: View.Play, vm: NonogramViewModel) {
         modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Header(title = if (solved) "Solved" else "") { vm.show(View.Menu) }
+        Header(
+            title = if (solved) "Solved" else "",
+            trailing = view.seed?.let { "#$it" },
+        ) { vm.show(View.Menu) }
 
         // The name is the reward, so it stays hidden until the grid is finished.
         LightText(
@@ -433,6 +454,9 @@ class NonogramViewModel(
     /** Non-null means the tool shows a trace instead of the game. */
     val startupError = MutableStateFlow<String?>(null)
 
+    /** Feedback for the seed row when a typed seed can't be used. */
+    val seedMessage = MutableStateFlow<String?>(null)
+
     private val packs = HashMap<Int, List<Puzzle>>()
 
     init {
@@ -483,6 +507,37 @@ class NonogramViewModel(
         // determines the picture and the name, so it's all the collection stores.
         val seed = (System.currentTimeMillis() and 0x7FFFFFFF).toInt()
         val solution = Generate.fromSeed(seed, s.size) ?: return
+        begin(
+            board = Board(s.size, s.size, solution, autoCross = s.autoCross),
+            puzzle = null,
+            made = Made(seed, s.size),
+            reveal = Names.nameFor(seed),
+        )
+    }
+
+    /**
+     * Play the puzzle for a typed seed.
+     *
+     * Any Int is a legal seed, so the only real failures are text that isn't a
+     * number and the rare case where generation exhausts its attempt budget.
+     * Both report on the menu rather than doing nothing, which would look broken.
+     */
+    fun playTypedSeed(typed: String) {
+        val s = state.value
+        val cleaned = typed.trim()
+        val seed = cleaned.toIntOrNull()
+        if (seed == null) {
+            seedMessage.value =
+                if (cleaned.isEmpty()) "Type a number and play that exact puzzle"
+                else "\"${cleaned.take(12)}\" isn't a whole number"
+            return
+        }
+        val solution = Generate.fromSeed(seed, s.size)
+        if (solution == null) {
+            seedMessage.value = "Seed $seed makes no ${s.size}×${s.size} puzzle — try another"
+            return
+        }
+        seedMessage.value = null
         begin(
             board = Board(s.size, s.size, solution, autoCross = s.autoCross),
             puzzle = null,
