@@ -50,6 +50,11 @@ Turning the phone's wheel scrolls the campaign grid, the collection, the menu an
 ever appears, the startup trace. The campaign is the reason: 69 pictures in four columns is
 about eighteen rows, and most of them start below the fold.
 
+**Nothing else has to be installed for that.** Light patched
+`/system/usr/keylayout/Generic.kl` and relabelled an optical sensor's two scancodes
+`WHEEL_CCW` and `WHEEL_CW`, so a notch is an ordinary key event that lands in whichever app
+holds focus, and the game reads it itself. No companion service, no permission, no root.
+
 **Not the board.** A notch on a puzzle has nothing to move — the grid is sized to fit the
 panel — and swallowing the key there would break something that does work today. A tool
 gets keys from the SDK, which forwards anything the screen doesn't claim on to LightOS,
@@ -57,13 +62,39 @@ where a turn is brightness. Since the board is where you sit longest, and dimmin
 reasonable thing to want while sitting there, the game claims the wheel only on the views
 that can actually move and lets the board pass it through.
 
-The turns arrive as ordinary key events, because LightOS relabels an optical sensor's
-scancodes as `WHEEL_CCW` and `WHEEL_CW`. Notches arrive faster than a frame, so each one
-becomes a debt that a share of gets paid off per frame, and the first notch after a pause is
-held back, because the wheel sits under a thumb. The wheel *click* and the camera button are
-left alone; they belong to [LightControl](https://github.com/gi-os/LightControl), which owns
-them across the phone. The long version is in
+Notches arrive faster than a frame, so each one becomes a debt that a share of gets paid off
+per frame, and the first notch after a pause is held back, because the wheel sits under a
+thumb. The wheel *click* and the camera button are left alone; they belong to
+[LightControl](https://github.com/gi-os/LightControl), which is optional and owns them
+across the phone: hold the wheel in and turn for brightness, tap it for the flashlight,
+press the camera button for the camera. Each of those is rebindable, tap and hold
+separately, to any installed app, and apps that handle no wheel keys of their own get
+brightness or a synthetic-swipe scroll out of it. The long version is in
 [LightNews](https://github.com/gi-os/LightNews#the-wheel-and-the-camera-button).
+
+Installing it costs the game neither its scrolling nor the board its brightness.
+LightControl passes bare turns straight through to `com.gios.*`, which is this tool, because
+per-notch scrolling inside an app beats anything reachable from outside it — so a turn on a
+list still scrolls, and a turn on the board still travels on through the SDK to LightOS and
+dims the screen, exactly as it does with nothing installed.
+
+```bash
+# Optional: LightControl, for brightness, the flashlight and the camera button
+adb install -r LightControl-v1.0.x.apk
+
+# The key service. NOTE: this setting is a list, and this command REPLACES it —
+# if you also run LightVoice's push-to-talk, colon-join both components instead.
+adb shell settings put secure enabled_accessibility_services \
+  com.gios.lightcontrol/com.gios.lightcontrol.keys.ControlService
+adb shell settings put secure accessibility_enabled 1
+
+# Brightness, and the level readout + opening apps from the service
+adb shell appops set com.gios.lightcontrol WRITE_SETTINGS allow
+adb shell appops set com.gios.lightcontrol SYSTEM_ALERT_WINDOW allow
+```
+
+The current build is at
+[LightControl/releases/latest](https://github.com/gi-os/LightControl/releases/latest).
 
 ## Generated puzzles get names
 
