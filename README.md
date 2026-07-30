@@ -1,14 +1,52 @@
 # LightNonogram
 
-Picross for the [Light Phone III](https://www.thelightphone.com/). 103 hand-drawn picture puzzles across 10×10 and 15×15, plus endless generated ones that get names and go in a collection. No network, no permissions, no backend.
+Picross for the [Light Phone III](https://www.thelightphone.com/). 103 hand-drawn picture
+puzzles across 10×10 and 15×15, plus endless generated ones that get names and go in a
+collection. No network, no permissions, no backend.
 
-A black-and-white logic grid is close to the ideal Light Phone tool: natively 1-bit, playable offline, and the board itself never scrolls.
-
-## Status
+A black-and-white logic grid is close to the ideal Light Phone tool: natively 1-bit,
+playable offline, and the board itself never scrolls.
 
 This repository is a fork of [lightphone/light-sdk](https://github.com/lightphone/light-sdk)
-with the game in `tool/`, so the SDK builds from source. See [INSTALL.md](INSTALL.md)
-to build or sideload it.
+— not of an existing nonogram game — with the game built as a tool in `tool/`, so the SDK
+builds from source and there's nothing extra to check out.
+
+**Current version:** `versionName` in `tool/lighttool.toml` is `0.4.0` (tag `v0.4.0`,
+2026-07-29). One untagged commit sits on top of it as of 2026-07-30 (wheel-in-README
+docs only — no code change since the tag). See [Version history](#version-history) for
+every release.
+
+## Quick start
+
+Sideload the latest release APK — no build required:
+
+```bash
+# grab LightNonogram-<version>.apk from https://github.com/gi-os/LightNonogram/releases
+adb install -r LightNonogram-0.4.0.apk
+```
+
+LightOS will warn the tool isn't signed by Light — expected, it's signed with a personal
+sideload key. Accept and it installs. Track the repo in
+[Obtainium](https://github.com/ImranR98/Obtainium) with the APK filter
+`LightNonogram-.*\.apk` for automatic updates.
+
+To build it yourself instead:
+
+```bash
+git clone https://github.com/gi-os/LightNonogram.git
+cd LightNonogram
+./gradlew :tool:assembleDebug
+./gradlew :tool:testDebugUnitTest      # 70 tests
+```
+
+Debug builds are signed with the SDK's committed development key, so they install over
+each other but not over a release build. Resolving the SDK's keyboard dependency needs a
+GitHub Packages token in `local.properties` (`gpr.user` / `gpr.key`, PAT with
+`read:packages`) — CI reads the same values from `GH_PACKAGES_USER` /
+`GH_PACKAGES_TOKEN`. Full detail, including running against the LightOS emulator and
+cutting a signed release, is in [INSTALL.md](INSTALL.md).
+
+## Status
 
 | Piece | State |
 |---|---|
@@ -19,6 +57,7 @@ to build or sideload it.
 | `art/icons-10.txt` — 69 hand-drawn 10×10 | **Done.** All uniquely solvable, CC0. |
 | `art/icons-15.txt` — 34 hand-drawn 15×15 | **Done.** All uniquely solvable, CC0. |
 | `tools/picross-gen` — generator & validator | **Working.** 9 tests + a brute-force cross-check. |
+| Hardware wheel scrolling (campaign, collection, menu) | **Working**, since v0.4.0. |
 
 Everything with no Android dependency is compiled and tested here. The Compose
 layer needs a full Android toolchain, so `.github/workflows/build.yml` is what
@@ -149,6 +188,28 @@ Yield depends sharply on fill ratio, which is the difficulty knob — time to pr
 | 15×15 | 0.07 ms | 0.37 ms | 1.04 ms |
 | 20×20 | 0.15 ms | 1.80 ms | 15.9 ms |
 
+## Configuration
+
+The tool takes no configuration outside the in-game Settings screen (auto-mark on/off,
+per [How to play](#how-to-play) above) — there is no config file, no server URL, no
+account. `tool/lighttool.toml` is the one file that configures the *tool itself* to the
+SDK:
+
+```toml
+[tool]
+id = "com.gios.lightnonogram"
+label = "Nonogram"
+versionCode = 11
+versionName = "0.4.0"
+orientation = "portrait"
+permissions = []
+serverPackage = "com.lightos"   # swap to com.thelightphone.sdk.emulator for the emulator
+```
+
+No permissions at all: every bundled puzzle compiles into the APK and everything
+generated is computed on device, so the tool never touches the network, storage or
+notifications.
+
 ## Layout
 
 ```
@@ -202,6 +263,42 @@ The pack compiles into the APK as a Kotlin string constant rather than loading f
 CI runs both on every push, and also regenerates the puzzle pack from
 `art/icons-10.txt` and fails if it differs from what's committed — so the art and
 the shipped puzzles can't drift apart.
+
+## Contributing
+
+- New puzzles go in `art/icons-10.txt` / `art/icons-15.txt`, one row per puzzle picture —
+  see [Regenerating the bundled pack](#regenerating-the-bundled-pack) above, and don't
+  hand-edit `BundledPack.kt` / `BundledPack15.kt`, they're generated.
+- Every puzzle you add must pass the bundler's uniqueness check (it refuses to emit an
+  ambiguous one) — that's the whole quality bar.
+- Game/generator changes: run `./gradlew :tool:testDebugUnitTest` before opening a PR;
+  changes to the solver should extend `tools/picross-gen`'s brute-force cross-check
+  rather than only adding example-based tests.
+- Cutting a release is a tag: bump `versionName`/`versionCode` in `tool/lighttool.toml`,
+  then `git tag v0.x.y && git push origin v0.x.y` — the release workflow refuses to run
+  if the tag doesn't match `lighttool.toml`. Full secrets list in
+  [INSTALL.md](INSTALL.md#cutting-a-release).
+
+## Version history
+
+| Version | Date | Notes |
+|---|---|---|
+| `v0.4.0` | 2026-07-29 | Hardware wheel scrolls the campaign grid, collection and menu — not the board, which passes turns through to LightOS brightness. |
+| `v0.3.2` | 2026-07-29 | Bigger clue digits; collection titles centred. |
+| `v0.3.1` | 2026-07-29 | Gave the board more of the screen. |
+| `v0.3.0` | 2026-07-28 | Two tabs on the SDK's own bottom bar (Play / Collection); Continue resumes anything, campaign or generated; centring fixes. |
+| `v0.2.2` | 2026-07-29 | Word seeds (type a word, not just a number); live Undo; uncropped clues; a properly centred grid. |
+| `v0.2.1` | 2026-07-28 | Centred the grid; a seed can be typed in. |
+| `v0.2.0` | 2026-07-28 | docs only (collection table). |
+| `v0.1.3` | 2026-07-28 | Fixed the launch crash: a `Regex` the JVM accepts but Android rejects. |
+| `v0.1.2` | 2026-07-28 | Minification off; the tool reports its own startup failure instead of a silent black screen. |
+| `v0.1.1` | 2026-07-28 | Fixed the startup crash: the tool module was missing the KSP plugin. |
+| `v0.1.0` | 2026-07-28 | First tagged release, after fixing the three compile errors the first real build found. |
+
+Two untagged milestones sit before `v0.1.0` in `git log`: `2cca4e0` restructured the repo
+as a light-sdk fork with CI that builds and releases the APK, and `c91ab30` added the game
+itself — 69 hand-drawn 10×10 puzzles and a playable tool, on top of `a2bb764`'s standalone
+line solver, validator and 336 CC0 puzzles that predates the SDK integration entirely.
 
 ## Origin and credits
 
