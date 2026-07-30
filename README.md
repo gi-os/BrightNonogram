@@ -2,7 +2,7 @@
 
 Picross for the [Light Phone III](https://www.thelightphone.com/). 103 hand-drawn picture puzzles across 10×10 and 15×15, plus endless generated ones that get names and go in a collection. No network, no permissions, no backend.
 
-A black-and-white logic grid is close to the ideal Light Phone tool: natively 1-bit, playable offline, and there's nothing to scroll.
+A black-and-white logic grid is close to the ideal Light Phone tool: natively 1-bit, playable offline, and the board itself never scrolls.
 
 ## Status
 
@@ -43,6 +43,27 @@ Design decisions that carry most of the feel:
 - **Two halves, on the SDK's own bottom bar.** Play holds the campaign, random puzzles and settings; Collection holds what you've made. The bar is hidden while a board is open, because it costs about four grid units of height and on the board every one of those belongs to the grid.
 - **Continue resumes whatever you last touched**, campaign or generated. One slot, not one per puzzle — that's what "continue" means, and a single slot gives it for free. The board is saved after every stroke as two bit-per-cell masks, about eighty characters.
 - **An explicit Home on the board.** LightOS's hardware back can't be intercepted: `LightActivity` wires its back dispatcher straight to its own `goBack()`, which pops the SDK's stack and calls `finish()` when it empties. `LightScreen.goBack` — the one that consults `LightViewModel.onBackPressed` — is only reached if a tool calls it itself. With one screen on the stack, back always closes the tool, so every view carries its own way back.
+
+## The wheel
+
+Turning the phone's wheel scrolls the campaign grid, the collection, the menu and, if it
+ever appears, the startup trace. The campaign is the reason: 69 pictures in four columns is
+about eighteen rows, and most of them start below the fold.
+
+**Not the board.** A notch on a puzzle has nothing to move — the grid is sized to fit the
+panel — and swallowing the key there would break something that does work today. A tool
+gets keys from the SDK, which forwards anything the screen doesn't claim on to LightOS,
+where a turn is brightness. Since the board is where you sit longest, and dimming is a
+reasonable thing to want while sitting there, the game claims the wheel only on the views
+that can actually move and lets the board pass it through.
+
+The turns arrive as ordinary key events, because LightOS relabels an optical sensor's
+scancodes as `WHEEL_CCW` and `WHEEL_CW`. Notches arrive faster than a frame, so each one
+becomes a debt that a share of gets paid off per frame, and the first notch after a pause is
+held back, because the wheel sits under a thumb. The wheel *click* and the camera button are
+left alone; they belong to [LightControl](https://github.com/gi-os/LightControl), which owns
+them across the phone. The long version is in
+[LightNews](https://github.com/gi-os/LightNews#the-wheel-and-the-camera-button).
 
 ## Generated puzzles get names
 
@@ -106,6 +127,7 @@ tool/                          the game (this is the Light SDK tool module)
   src/main/kotlin/.../gen/     on-device generator — pure Kotlin, fully tested
   src/main/kotlin/.../data/    bundled pack + progress store
   src/main/kotlin/.../ui/      Compose grid
+  src/main/kotlin/.../hw/      wheel keys and the notch-to-scroller bus
   src/main/kotlin/.../HomeScreen.kt   the single SDK screen
   src/test/                    29 tests
 art/icons-10.txt               69 hand-drawn 10x10 puzzles (CC0) — source of truth

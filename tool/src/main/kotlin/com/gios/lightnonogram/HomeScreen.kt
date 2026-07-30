@@ -1,5 +1,6 @@
 package com.gios.lightnonogram
 
+import android.view.KeyEvent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,10 +16,12 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -40,6 +43,10 @@ import com.gios.lightnonogram.game.Session
 import com.gios.lightnonogram.game.Tool
 import com.gios.lightnonogram.gen.Generate
 import com.gios.lightnonogram.gen.Names
+import com.gios.lightnonogram.hw.LocalWheelBus
+import com.gios.lightnonogram.hw.WheelBus
+import com.gios.lightnonogram.hw.WheelScroll
+import com.gios.lightnonogram.hw.dispatch
 import com.gios.lightnonogram.ui.PicrossGrid
 import com.gios.lightnonogram.ui.PuzzleThumbnail
 import com.thelightphone.sdk.InitialScreen
@@ -113,6 +120,27 @@ class HomeScreen(
         return NonogramViewModel(store.getOrNull(), store.exceptionOrNull())
     }
 
+    /** Wheel notches on their way to whichever view is up. */
+    private val wheel = WheelBus()
+
+    /**
+     * Whether a notch is worth anything here.
+     *
+     * The board is the one view with nothing to scroll, and on it a turn is worth
+     * more left alone: the SDK forwards an unclaimed key to LightOS, which reads it
+     * as brightness. Claiming it everywhere would mean the wheel went dead the
+     * moment a puzzle opened, which is the longest anyone looks at this screen and
+     * exactly when they might want it dimmer. Nothing pans the grid — it is sized to
+     * fit the panel, and a notch on it would only be a way to lose your place.
+     */
+    private fun wheelWanted(): Boolean = viewModel.view.value !is View.Play
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent) =
+        (wheelWanted() && wheel.dispatch(event)) || super.onKeyDown(keyCode, event)
+
+    override fun onKeyUp(keyCode: Int, event: KeyEvent) =
+        (wheelWanted() && wheel.dispatch(event)) || super.onKeyUp(keyCode, event)
+
     /**
      * Push the text editor and play whatever comes back.
      *
@@ -133,50 +161,56 @@ class HomeScreen(
         val themeColors by LightThemeController.colors.collectAsState()
         val failure by viewModel.startupError.collectAsState()
 
-        // Drawn without LightTheme or LightText on purpose: if the failure is in
-        // the theme or the SDK's text stack, a reporter built on them would die
-        // too and we'd be back to a blank crash.
-        failure?.let { StartupFailure(it); return@Content }
+        // Every view reaches the wheel through the bus, the failure trace included.
+        CompositionLocalProvider(LocalWheelBus provides wheel) {
+            val trace = failure
+            if (trace != null) {
+                // Drawn without LightTheme or LightText on purpose: if the failure is in
+                // the theme or the SDK's text stack, a reporter built on them would die
+                // too and we'd be back to a blank crash.
+                StartupFailure(trace)
+            } else {
+                LightTheme(colors = themeColors) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(LightThemeTokens.colors.background)
+                            .padding(bottom = BACK_BUTTON_INSET),
+                    ) {
+                        Box(Modifier.fillMaxWidth().weight(1f)) {
+                            when (val v = view) {
+                                is View.Menu -> Menu(state, viewModel, onEnterSeed = ::promptForSeed)
+                                is View.Gallery -> Gallery(state, viewModel)
+                                is View.Collected -> CollectedView(state, viewModel)
+                                is View.Settings -> Settings(state, viewModel)
+                                is View.Play -> Play(v, viewModel)
+                            }
+                        }
 
-        LightTheme(colors = themeColors) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(LightThemeTokens.colors.background)
-                    .padding(bottom = BACK_BUTTON_INSET),
-            ) {
-                Box(Modifier.fillMaxWidth().weight(1f)) {
-                    when (val v = view) {
-                        is View.Menu -> Menu(state, viewModel, onEnterSeed = ::promptForSeed)
-                        is View.Gallery -> Gallery(state, viewModel)
-                        is View.Collected -> CollectedView(state, viewModel)
-                        is View.Settings -> Settings(state, viewModel)
-                        is View.Play -> Play(v, viewModel)
+                        // The bar is the way between the two halves of the tool, and — since
+                        // hardware back closes the tool outright — the way out of the
+                        // campaign and settings views too.
+                        //
+                        // Hidden while a board is open. It costs about four grid units of
+                        // height, and on the board every one of those goes to the grid
+                        // instead; the board carries its own Home instead.
+                        if (view !is View.Play) {
+                            LightBottomBar(
+                                items = listOf(
+                                    LightBarButton.LightIcon(
+                                        icon = LightIcons.PLAY,
+                                        contentDescription = "Play",
+                                        onClick = { viewModel.show(View.Menu) },
+                                    ),
+                                    LightBarButton.LightIcon(
+                                        icon = LightIcons.LARGE_LIST,
+                                        contentDescription = "Your collection",
+                                        onClick = { viewModel.show(View.Collected) },
+                                    ),
+                                ),
+                            )
+                        }
                     }
-                }
-
-                // The bar is the way between the two halves of the tool, and — since
-                // hardware back closes the tool outright — the way out of the
-                // campaign and settings views too.
-                //
-                // Hidden while a board is open. It costs about four grid units of
-                // height, and on the board every one of those goes to the grid
-                // instead; the board carries its own Home instead.
-                if (view !is View.Play) {
-                    LightBottomBar(
-                        items = listOf(
-                            LightBarButton.LightIcon(
-                                icon = LightIcons.PLAY,
-                                contentDescription = "Play",
-                                onClick = { viewModel.show(View.Menu) },
-                            ),
-                            LightBarButton.LightIcon(
-                                icon = LightIcons.LARGE_LIST,
-                                contentDescription = "Your collection",
-                                onClick = { viewModel.show(View.Collected) },
-                            ),
-                        ),
-                    )
                 }
             }
         }
@@ -193,13 +227,17 @@ class HomeScreen(
  */
 @Composable
 private fun StartupFailure(trace: String) {
+    // The longest thing the tool ever draws, and the one time reading all of it
+    // matters, so the wheel works here too.
+    val scroll = rememberScrollState()
+    WheelScroll(scroll)
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
             .padding(12.dp)
             .padding(bottom = BACK_BUTTON_INSET)
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(scroll),
     ) {
         BasicText(
             "Nonogram failed to start",
@@ -244,8 +282,11 @@ private fun Menu(state: ToolState, vm: NonogramViewModel, onEnterSeed: () -> Uni
     val done = state.progress.countIn(puzzles)
     val next = puzzles.firstOrNull { !state.progress.has(it.id) }
 
+    val scroll = rememberScrollState()
+    WheelScroll(scroll)
+
     Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 22.dp).verticalScroll(rememberScrollState()),
+        modifier = Modifier.fillMaxSize().padding(horizontal = 22.dp).verticalScroll(scroll),
         verticalArrangement = Arrangement.Center,
     ) {
         LightText(text = "Nonogram", variant = LightTextVariant.Heading)
@@ -303,7 +344,14 @@ private fun Gallery(state: ToolState, vm: NonogramViewModel) {
             title = "Puzzle campaign",
             trailing = "${state.progress.countIn(puzzles)}/${puzzles.size}",
         ) { vm.show(View.Menu) }
+
+        // Sixty-nine pictures in four columns is about eighteen rows, most of them
+        // below the fold. This is the view the wheel is here for.
+        val gridState = rememberLazyGridState()
+        WheelScroll(gridState)
+
         LazyVerticalGrid(
+            state = gridState,
             columns = GridCells.Fixed(4),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -350,7 +398,11 @@ private fun CollectedView(state: ToolState, vm: NonogramViewModel) {
             return
         }
 
+        val gridState = rememberLazyGridState()
+        WheelScroll(gridState)
+
         LazyVerticalGrid(
+            state = gridState,
             columns = GridCells.Fixed(2),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
