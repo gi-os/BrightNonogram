@@ -1,4 +1,4 @@
-# LightNonogram
+# BrightNonogram
 
 Picross for the [Light Phone III](https://www.thelightphone.com/). 103 hand-drawn picture
 puzzles across 10×10 and 15×15, plus endless generated ones that get names and go in a
@@ -21,7 +21,7 @@ every release.
 Sideload the latest release APK — no build required:
 
 ```bash
-# grab LightNonogram-<version>.apk from https://github.com/gi-os/LightNonogram/releases
+# grab LightNonogram-<version>.apk from https://github.com/gi-os/BrightNonogram/releases
 adb install -r LightNonogram-0.4.0.apk
 ```
 
@@ -33,8 +33,8 @@ sideload key. Accept and it installs. Track the repo in
 To build it yourself instead:
 
 ```bash
-git clone https://github.com/gi-os/LightNonogram.git
-cd LightNonogram
+git clone https://github.com/gi-os/BrightNonogram.git
+cd BrightNonogram
 ./gradlew :tool:assembleDebug
 ./gradlew :tool:testDebugUnitTest      # 70 tests
 ```
@@ -104,7 +104,7 @@ that can actually move and lets the board pass it through.
 Notches arrive faster than a frame, so each one becomes a debt that a share of gets paid off
 per frame, and the first notch after a pause is held back, because the wheel sits under a
 thumb. The wheel *click* and the camera button are left alone; they belong to
-[LightControl](https://github.com/gi-os/LightControl), which is optional and owns them
+[BrightControl](https://github.com/gi-os/BrightControl), which is optional and owns them
 across the phone: hold the wheel in and turn for brightness, tap it for the flashlight,
 press the camera button for the camera. Each of those is rebindable, tap and hold
 separately, to any installed app, and apps that handle no wheel keys of their own get
@@ -112,13 +112,13 @@ brightness or a synthetic-swipe scroll out of it. The long version is in
 [LightNews](https://github.com/gi-os/LightNews#the-wheel-and-the-camera-button).
 
 Installing it costs the game neither its scrolling nor the board its brightness.
-LightControl passes bare turns straight through to `com.gios.*`, which is this tool, because
+BrightControl passes bare turns straight through to `com.gios.*`, which is this tool, because
 per-notch scrolling inside an app beats anything reachable from outside it — so a turn on a
 list still scrolls, and a turn on the board still travels on through the SDK to LightOS and
 dims the screen, exactly as it does with nothing installed.
 
 ```bash
-# Optional: LightControl, for brightness, the flashlight and the camera button
+# Optional: BrightControl, for brightness, the flashlight and the camera button
 adb install -r LightControl-v1.0.x.apk
 
 # The key service. NOTE: this setting is a list, and this command REPLACES it —
@@ -133,7 +133,7 @@ adb shell appops set com.gios.lightcontrol SYSTEM_ALERT_WINDOW allow
 ```
 
 The current build is at
-[LightControl/releases/latest](https://github.com/gi-os/LightControl/releases/latest).
+[BrightControl/releases/latest](https://github.com/gi-os/BrightControl/releases/latest).
 
 ## Generated puzzles get names
 
@@ -318,13 +318,13 @@ line solver, validator and 336 CC0 puzzles that predates the SDK integration ent
 - The 69 pictures in `art/icons-10.txt` are drawn by hand and dedicated CC0. Every
   puzzle in `packs/` is CC0 too. Take them.
 - The app's mark follows the collection convention set by
-  [LightFog](https://github.com/gi-os/LightFog)'s `scripts/generate-icon.js`: the
+  [FogLight](https://github.com/gi-os/FogLight)'s `scripts/generate-icon.js`: the
   app's first letter in Public Sans, white on black, 85.4pt on a 100pt canvas,
   centred on the ink rather than the line box. Regenerate with
   `python3 tools/generate_icon.py`. Public Sans is SIL OFL 1.1 — see
   [assets/fonts/README.md](assets/fonts/README.md).
 
-[LightSolitaire](https://github.com/gi-os/LightSolitaire) went the other way in this
+[BrightSolitaire](https://github.com/gi-os/BrightSolitaire) went the other way in this
 collection — it put a complete game in the SDK `tool` module first, so it's the model
 to follow when wiring `tool/` up.
 
@@ -334,17 +334,17 @@ Twelve tools for the Light Phone III, all open source, all built in one run.
 
 | Tool | What it does | Built on |
 | --- | --- | --- |
-| [LightPass](https://github.com/gi-os/LightPass) | Photograph a movie ticket, keep the stub | Plain Android |
+| [BrightPasses](https://github.com/gi-os/BrightPasses) | Photograph a movie ticket, keep the stub | Plain Android |
 | [LightQR](https://github.com/gi-os/LightQR) | QR scanner, plus a browser generator | Plain Android |
-| [LightRSS](https://github.com/gi-os/LightRSS) | RSS and Atom reader with images and QR subscribe | light-sdk, fork of [zachattack323/LightRSS](https://github.com/zachattack323/LightRSS) |
-| [LightNYCSubway](https://github.com/gi-os/LightNYCSubway) | Live MTA subway arrivals | light-sdk fork |
+| [BrightNews](https://github.com/gi-os/BrightNews) | RSS and Atom reader with images and QR subscribe | light-sdk, fork of [zachattack323/LightRSS](https://github.com/zachattack323/LightRSS) |
+| [BrightTransit](https://github.com/gi-os/BrightTransit) | Live MTA subway arrivals | light-sdk fork |
 | [chat](https://github.com/gi-os/chat) | iMessage over a self-hosted BlueBubbles server | Fork of [craigeley/chat](https://github.com/craigeley/chat) |
-| [LightFog](https://github.com/gi-os/LightFog) | Fog of World companion, GPS recorder and fog map | Fork of [garado/light-topographic](https://github.com/garado/light-topographic) |
-| **LightNonogram** (this repo) | Picross, plus a generator that only ships solvable puzzles | Kotlin generator, light-sdk tool |
-| [LightSolitaire](https://github.com/gi-os/LightSolitaire) | Klondike, draw one, unlimited redeals | light-sdk |
-| [LightFastread](https://github.com/gi-os/LightFastread) | RSVP speed reader for EPUB and MOBI | Fork of [fluffyspace/FastRead](https://github.com/fluffyspace/FastRead) |
-| [LightTip](https://github.com/gi-os/LightTip) | Tip calculator, plus a receipt splitter that reads the line items | Plain Android |
-| [LightNoise](https://github.com/gi-os/LightNoise) | Twelve synthesized sounds, a two-layer mixer and a sleep timer | Plain Android |
+| [FogLight](https://github.com/gi-os/FogLight) | Fog of World companion, GPS recorder and fog map | Fork of [garado/light-topographic](https://github.com/garado/light-topographic) |
+| **BrightNonogram** (this repo) | Picross, plus a generator that only ships solvable puzzles | Kotlin generator, light-sdk tool |
+| [BrightSolitaire](https://github.com/gi-os/BrightSolitaire) | Klondike, draw one, unlimited redeals | light-sdk |
+| [BrightLibrary](https://github.com/gi-os/BrightLibrary) | RSVP speed reader for EPUB and MOBI | Fork of [fluffyspace/FastRead](https://github.com/fluffyspace/FastRead) |
+| [BrightTip](https://github.com/gi-os/BrightTip) | Tip calculator, plus a receipt splitter that reads the line items | Plain Android |
+| [BrightNoise](https://github.com/gi-os/BrightNoise) | Twelve synthesized sounds, a two-layer mixer and a sleep timer | Plain Android |
 | [LightPods](https://github.com/gi-os/LightPods) | AirPods battery, in-ear and lid status | Plain Android, ports [LibrePods](https://github.com/kavishdevar/librepods) |
 
 The Light Phone does not sponsor or endorse any of these. Licences vary per repo.
