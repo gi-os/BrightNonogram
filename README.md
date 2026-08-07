@@ -4,6 +4,17 @@ Picross for the [Light Phone III](https://www.thelightphone.com/). 103 hand-draw
 puzzles across 10×10 and 15×15, plus endless generated ones that get names and go in a
 collection. No network, no permissions, no backend.
 
+## Install via BrightMarket
+
+<p align="center">
+  <img src="https://gi-os.github.io/brightmarket-index/assets/brightmarket-qr.png" alt="Scan to open BrightMarket" width="180" />
+</p>
+
+Scan the code above, or visit
+**[gi-os.github.io/brightmarket-index/browse.html](https://gi-os.github.io/brightmarket-index/browse.html)**, to install
+and keep this app updated through **BrightMarket** — no Play Store, no PC
+required.
+
 A black-and-white logic grid is close to the ideal Light Phone tool: natively 1-bit,
 playable offline, and the board itself never scrolls.
 
