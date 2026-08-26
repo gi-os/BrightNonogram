@@ -1,3 +1,5 @@
+<img src="assets/icon.png" alt="" width="72" align="left" />
+
 # BrightNonogram
 
 Picross for the [Light Phone III](https://www.thelightphone.com/). 103 hand-drawn picture
