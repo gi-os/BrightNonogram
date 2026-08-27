@@ -24,10 +24,8 @@ This repository is a fork of [lightphone/light-sdk](https://github.com/lightphon
 — not of an existing nonogram game — with the game built as a tool in `tool/`, so the SDK
 builds from source and there's nothing extra to check out.
 
-**Current version:** `versionName` in `tool/lighttool.toml` is `0.4.0` (tag `v0.4.0`,
-2026-07-29). One untagged commit sits on top of it as of 2026-07-30 (wheel-in-README
-docs only — no code change since the tag). See [Version history](#version-history) for
-every release.
+**Current version:** `versionName` in `tool/lighttool.toml` is `0.4.1` (tag `v0.4.1`,
+2026-08-27). See [Version history](#version-history) for every release.
 
 ## Quick start
 
@@ -35,7 +33,7 @@ Sideload the latest release APK — no build required:
 
 ```bash
 # grab LightNonogram-<version>.apk from https://github.com/gi-os/BrightNonogram/releases
-adb install -r LightNonogram-0.4.0.apk
+adb install -r LightNonogram-0.4.1.apk
 ```
 
 LightOS will warn the tool isn't signed by Light — expected, it's signed with a personal
@@ -212,8 +210,8 @@ SDK:
 [tool]
 id = "com.gios.lightnonogram"
 label = "Nonogram"
-versionCode = 11
-versionName = "0.4.0"
+versionCode = 12
+versionName = "0.4.1"
 orientation = "portrait"
 permissions = []
 serverPackage = "com.lightos"   # swap to com.thelightphone.sdk.emulator for the emulator
@@ -296,6 +294,7 @@ the shipped puzzles can't drift apart.
 
 | Version | Date | Notes |
 |---|---|---|
+| `v0.4.1` | 2026-08-27 | Typing a seed no longer crashes the tool on a newer LightOS. |
 | `v0.4.0` | 2026-07-29 | Hardware wheel scrolls the campaign grid, collection and menu — not the board, which passes turns through to LightOS brightness. |
 | `v0.3.2` | 2026-07-29 | Bigger clue digits; collection titles centred. |
 | `v0.3.1` | 2026-07-29 | Gave the board more of the screen. |
