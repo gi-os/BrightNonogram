@@ -2,6 +2,8 @@
 
 # BrightNonogram
 
+[**⬇ Download the latest APK**](https://github.com/gi-os/BrightNonogram/releases/latest) · free, open source.
+
 Picross for the [Light Phone III](https://www.thelightphone.com/). 103 hand-drawn picture
 puzzles across 10×10 and 15×15, plus endless generated ones that get names and go in a
 collection. No network, no permissions, no backend.
